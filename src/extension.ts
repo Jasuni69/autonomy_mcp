@@ -73,37 +73,37 @@ async function runSetup(
       if (!pythonResult.ok) {
         outputChannel.appendLine(`WARN: ${pythonResult.message}`);
         if (manual) {
-          const action = await vscode.window.showWarningMessage(
+          vscode.window.showWarningMessage(
             'Python 3.12+ not found. Required for MCP servers.',
             'Install Now (winget)',
-            'Download Page',
-            'Continue Anyway'
-          );
-          if (action === 'Install Now (winget)') {
-            const terminal = vscode.window.createTerminal('Python Install');
-            terminal.show();
-            terminal.sendText('winget install -e --id Python.Python.3.12');
-          } else if (action === 'Download Page') {
-            vscode.env.openExternal(vscode.Uri.parse('https://www.python.org/downloads/'));
-          }
+            'Download Page'
+          ).then(action => {
+            if (action === 'Install Now (winget)') {
+              const terminal = vscode.window.createTerminal('Python Install');
+              terminal.show();
+              terminal.sendText('winget install -e --id Python.Python.3.12');
+            } else if (action === 'Download Page') {
+              vscode.env.openExternal(vscode.Uri.parse('https://www.python.org/downloads/'));
+            }
+          });
         }
       }
       if (!uvResult.ok) {
         outputChannel.appendLine(`WARN: ${uvResult.message}`);
         if (manual) {
-          const action = await vscode.window.showWarningMessage(
+          vscode.window.showWarningMessage(
             'uv not found. Required for MCP server dependency management.',
             'Install Now (PowerShell)',
-            'Install Guide',
-            'Continue Anyway'
-          );
-          if (action === 'Install Now (PowerShell)') {
-            const terminal = vscode.window.createTerminal('uv Install');
-            terminal.show();
-            terminal.sendText('powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"');
-          } else if (action === 'Install Guide') {
-            vscode.env.openExternal(vscode.Uri.parse('https://docs.astral.sh/uv/getting-started/installation/'));
-          }
+            'Install Guide'
+          ).then(action => {
+            if (action === 'Install Now (PowerShell)') {
+              const terminal = vscode.window.createTerminal('uv Install');
+              terminal.show();
+              terminal.sendText('powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"');
+            } else if (action === 'Install Guide') {
+              vscode.env.openExternal(vscode.Uri.parse('https://docs.astral.sh/uv/getting-started/installation/'));
+            }
+          });
         }
       }
 
@@ -111,21 +111,21 @@ async function runSetup(
       if (!azResult.ok) {
         outputChannel.appendLine(`WARN: ${azResult.message}`);
         if (manual) {
-          const action = await vscode.window.showWarningMessage(
+          vscode.window.showWarningMessage(
             'Azure CLI not found. Required for Fabric MCP tools.',
             'Install Now (winget)',
-            'Manual Install',
-            'Continue Anyway'
-          );
-          if (action === 'Install Now (winget)') {
-            const terminal = vscode.window.createTerminal('Azure CLI Install');
-            terminal.show();
-            terminal.sendText('winget install -e --id Microsoft.AzureCLI');
-          } else if (action === 'Manual Install') {
-            vscode.env.openExternal(vscode.Uri.parse(
-              'https://learn.microsoft.com/en-us/cli/azure/install-azure-cli'
-            ));
-          }
+            'Manual Install'
+          ).then(action => {
+            if (action === 'Install Now (winget)') {
+              const terminal = vscode.window.createTerminal('Azure CLI Install');
+              terminal.show();
+              terminal.sendText('winget install -e --id Microsoft.AzureCLI');
+            } else if (action === 'Manual Install') {
+              vscode.env.openExternal(vscode.Uri.parse(
+                'https://learn.microsoft.com/en-us/cli/azure/install-azure-cli'
+              ));
+            }
+          });
         }
       } else {
         progress.report({ message: 'Checking Azure authentication...' });
@@ -133,16 +133,16 @@ async function runSetup(
         if (!authResult.ok) {
           outputChannel.appendLine(`WARN: ${authResult.message}`);
           if (manual) {
-            const action = await vscode.window.showWarningMessage(
+            vscode.window.showWarningMessage(
               'Not logged in to Azure. MCP tools will fail without authentication.',
-              'Open Terminal to Login',
-              'Continue Anyway'
-            );
-            if (action === 'Open Terminal to Login') {
-              const terminal = vscode.window.createTerminal('Azure Login');
-              terminal.show();
-              terminal.sendText('az login');
-            }
+              'Open Terminal to Login'
+            ).then(action => {
+              if (action === 'Open Terminal to Login') {
+                const terminal = vscode.window.createTerminal('Azure Login');
+                terminal.show();
+                terminal.sendText('az login');
+              }
+            });
           }
         } else {
           outputChannel.appendLine(authResult.message);
@@ -153,21 +153,21 @@ async function runSetup(
       if (!odbcResult.ok) {
         outputChannel.appendLine(`WARN: ${odbcResult.message}`);
         if (manual) {
-          const action = await vscode.window.showWarningMessage(
+          vscode.window.showWarningMessage(
             'ODBC Driver 18 not found (optional — only needed for SQL queries against lakehouses/warehouses).',
             'Install Now (winget)',
-            'Download Page',
-            'Skip'
-          );
-          if (action === 'Install Now (winget)') {
-            const terminal = vscode.window.createTerminal('ODBC Driver Install');
-            terminal.show();
-            terminal.sendText('winget install -e --id Microsoft.msodbcsql18');
-          } else if (action === 'Download Page') {
-            vscode.env.openExternal(vscode.Uri.parse(
-              'https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server'
-            ));
-          }
+            'Download Page'
+          ).then(action => {
+            if (action === 'Install Now (winget)') {
+              const terminal = vscode.window.createTerminal('ODBC Driver Install');
+              terminal.show();
+              terminal.sendText('winget install -e --id Microsoft.msodbcsql18');
+            } else if (action === 'Download Page') {
+              vscode.env.openExternal(vscode.Uri.parse(
+                'https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server'
+              ));
+            }
+          });
         }
       }
 
@@ -258,14 +258,14 @@ async function runSetup(
       outputChannel.appendLine('Details:\n  ' + results.join('\n  '));
 
       if (manual) {
-        const action = await vscode.window.showInformationMessage(
+        vscode.window.showInformationMessage(
           summary,
-          'Show Details',
-          'OK'
-        );
-        if (action === 'Show Details') {
-          outputChannel.show();
-        }
+          'Show Details'
+        ).then(action => {
+          if (action === 'Show Details') {
+            outputChannel.show();
+          }
+        });
       }
     }
   );
