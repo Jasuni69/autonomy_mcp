@@ -75,6 +75,7 @@ async def create_lakehouse(
     name: str,
     workspace: Optional[str] = None,
     description: Optional[str] = None,
+    enable_schemas: bool = True,
     folder_id: Optional[str] = None,
     ctx: Context = None,
 ) -> str:
@@ -84,6 +85,8 @@ async def create_lakehouse(
         name: Name of the lakehouse
         workspace: Name or ID of the workspace (optional)
         description: Description of the lakehouse (optional)
+        enable_schemas: Enable schema support for the lakehouse (default: True)
+        folder_id: ID of the folder to create the lakehouse in (optional)
         ctx: Context object containing client information
     Returns:
         A string confirming the lakehouse has been created or an error message.
@@ -97,7 +100,8 @@ async def create_lakehouse(
             return "Workspace not set. Please set a workspace using the 'set_workspace' command."
 
         result = await lakehouse_client.create_lakehouse(
-            name=name, workspace=ws, description=description, folder_id=folder_id
+            name=name, workspace=ws, description=description,
+            enable_schemas=enable_schemas, folder_id=folder_id,
         )
 
         # Format the response to be more user-friendly

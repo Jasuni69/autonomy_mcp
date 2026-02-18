@@ -502,6 +502,7 @@ class FabricApiClient:
         workspace: Optional[str | UUID] = None,
         lro: Optional[bool] = False,
         folder_id: Optional[str] = None,
+        creation_payload: Optional[dict] = None,
     ):
         """
         Creates an item in a Fabric workspace.
@@ -552,6 +553,8 @@ class FabricApiClient:
             payload["definition"] = definition
         if folder_id:
             payload["folderId"] = folder_id
+        if creation_payload:
+            payload["creationPayload"] = creation_payload
 
         try:
             response = await self._make_request(

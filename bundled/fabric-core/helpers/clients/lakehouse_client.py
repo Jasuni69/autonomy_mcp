@@ -58,6 +58,7 @@ class LakehouseClient:
         name: str,
         workspace: str,
         description: Optional[str] = None,
+        enable_schemas: bool = True,
         folder_id: Optional[str] = None,
     ):
         """Create a new lakehouse."""
@@ -68,10 +69,15 @@ class LakehouseClient:
         if not name:
             raise ValueError("Lakehouse name cannot be empty.")
 
+        creation_payload = None
+        if enable_schemas:
+            creation_payload = {"enableSchemas": True}
+
         return await self.client.create_item(
             name=name,
             workspace=workspace,
             description=description,
             type="Lakehouse",
             folder_id=folder_id,
+            creation_payload=creation_payload,
         )
