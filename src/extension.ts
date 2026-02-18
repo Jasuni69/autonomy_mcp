@@ -72,11 +72,39 @@ async function runSetup(
 
       if (!pythonResult.ok) {
         outputChannel.appendLine(`WARN: ${pythonResult.message}`);
-        if (manual) { vscode.window.showWarningMessage(pythonResult.message); }
+        if (manual) {
+          const action = await vscode.window.showWarningMessage(
+            'Python 3.12+ not found. Required for MCP servers.',
+            'Install Now (winget)',
+            'Download Page',
+            'Continue Anyway'
+          );
+          if (action === 'Install Now (winget)') {
+            const terminal = vscode.window.createTerminal('Python Install');
+            terminal.show();
+            terminal.sendText('winget install -e --id Python.Python.3.12');
+          } else if (action === 'Download Page') {
+            vscode.env.openExternal(vscode.Uri.parse('https://www.python.org/downloads/'));
+          }
+        }
       }
       if (!uvResult.ok) {
         outputChannel.appendLine(`WARN: ${uvResult.message}`);
-        if (manual) { vscode.window.showWarningMessage(uvResult.message); }
+        if (manual) {
+          const action = await vscode.window.showWarningMessage(
+            'uv not found. Required for MCP server dependency management.',
+            'Install Now (PowerShell)',
+            'Install Guide',
+            'Continue Anyway'
+          );
+          if (action === 'Install Now (PowerShell)') {
+            const terminal = vscode.window.createTerminal('uv Install');
+            terminal.show();
+            terminal.sendText('powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"');
+          } else if (action === 'Install Guide') {
+            vscode.env.openExternal(vscode.Uri.parse('https://docs.astral.sh/uv/getting-started/installation/'));
+          }
+        }
       }
 
       // Step 1b: Check Azure CLI + authentication
