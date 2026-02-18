@@ -50,6 +50,8 @@ To re-run setup: Command Palette > **Fabric & Power BI: Full Setup**
 
 - Use `create_pyspark_notebook` with templates (basic, etl, analytics, ml)
 - `run_notebook_job` + `get_run_status` to execute and poll
+- `update_notebook_cell` caches the original notebook before writing — use `restore_notebook` to undo if needed
+- If a notebook read fails during update, the operation aborts to prevent data loss
 
 ## fabric-core: Naming Conventions
 
@@ -110,7 +112,7 @@ When you find translatable content that requires repetitive manual edits across 
 
 ## Complete Tool Reference (fabric-core)
 
-**83 tools** across 15 categories.
+**84 tools** across 15 categories.
 
 ### Quick Reference
 
@@ -124,7 +126,7 @@ When you find translatable content that requires repetitive manual edits across 
 | Semantic Models & DAX | 9 | Models, measures CRUD, DAX analysis |
 | Power BI | 4 | DAX queries, model refresh, report export |
 | Reports | 2 | List and get report details |
-| Notebooks | 17 | Create, execute, code generation, validation |
+| Notebooks | 18 | Create, execute, code generation, validation, restore |
 | Pipelines & Scheduling | 8 | Run, monitor, create pipelines; manage schedules |
 | OneLake | 7 | File I/O, directory listing, shortcuts |
 | Data Loading | 1 | Load CSV/Parquet from URL into delta tables |
@@ -224,7 +226,7 @@ When you find translatable content that requires repetitive manual edits across 
 
 ### 9. Notebooks
 
-**Basic:** `list_notebooks`, `create_notebook`, `get_notebook_content`, `update_notebook_cell`
+**Basic:** `list_notebooks`, `create_notebook`, `get_notebook_content`, `update_notebook_cell`, `restore_notebook`
 
 **Templates:** `create_pyspark_notebook(workspace, notebook_name, template_type)` — Templates: basic|etl|analytics|ml. `create_fabric_notebook(workspace, notebook_name, template_type)` — Templates: fabric_integration|streaming.
 
