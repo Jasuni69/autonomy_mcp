@@ -1,0 +1,8 @@
+out/
+node_modules/
+*.vsix
+.vscode-test/
+**/__pycache__/
+**/.venv/
+**/*.pyc
+.fabric-mcp/

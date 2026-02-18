@@ -1,0 +1,17 @@
+src/**
+node_modules/**
+.vscode-test/**
+**/*.map
+**/*.ts
+!out/**/*.js
+tsconfig.json
+.gitignore
+**/__pycache__/**
+**/.venv/**
+**/*.pyc
+.claude/**
+*.png
+*.jpg
+*.vsix
+*.md
+!bundled/**/*.md
