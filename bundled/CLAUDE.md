@@ -146,7 +146,7 @@ When you find translatable content that requires repetitive manual edits across 
 
 `list_lakehouses(workspace?)` — List lakehouses.
 
-`create_lakehouse(name, workspace?, description?, folder_id?)` — Create lakehouse.
+`create_lakehouse(name, workspace?, description?, enable_schemas=True, folder_id?)` — Create lakehouse. Schemas enabled by default.
 
 `set_lakehouse(lakehouse)` — Set active lakehouse for table/SQL ops.
 
