@@ -1198,21 +1198,22 @@ async def update_notebook_cell(
         # Get current notebook content
         current_content = await get_notebook_content(workspace, notebook_id, ctx)
 
-        notebook_data = None
-        if current_content and not current_content.startswith("Error") and not current_content.startswith("Could not") and not current_content.startswith("Unexpected"):
-            try:
-                notebook_data = json.loads(current_content)
-            except json.JSONDecodeError:
-                logger.warning(f"Failed to parse notebook JSON, starting fresh")
+        if not current_content or current_content.startswith("Error") or current_content.startswith("Could not") or current_content.startswith("Unexpected"):
+            return f"Cannot update notebook: failed to read existing content. Aborting to prevent data loss. Details: {current_content}"
 
-        # If read failed or returned empty, start with a blank notebook
-        if not notebook_data or not isinstance(notebook_data.get("cells"), list):
-            notebook_data = {
-                "nbformat": 4,
-                "nbformat_minor": 5,
-                "cells": [],
-                "metadata": {"language_info": {"name": "python"}},
-            }
+        notebook_data = None
+        try:
+            notebook_data = json.loads(current_content)
+        except json.JSONDecodeError:
+            return f"Cannot update notebook: existing content is not valid JSON. Aborting to prevent data loss."
+
+        if not isinstance(notebook_data.get("cells"), list):
+            return f"Cannot update notebook: no valid cells found in existing notebook. Aborting to prevent data loss."
+
+        # Cache original notebook content before modifying
+        backup_key = f"{ctx.client_id}_notebook_backup_{notebook_id}"
+        __ctx_cache[backup_key] = current_content
+        logger.info(f"Cached backup of notebook '{notebook_id}' ({len(notebook_data['cells'])} cells)")
 
         cells = notebook_data["cells"]
         
@@ -1305,6 +1306,96 @@ async def update_notebook_cell(
     except Exception as e:
         logger.error(f"Error updating notebook cell: {str(e)}")
         return f"Error updating notebook cell: {str(e)}"
+
+@mcp.tool()
+async def restore_notebook(
+    workspace: str,
+    notebook_id: str,
+    ctx: Context = None,
+) -> str:
+    """Restore a notebook to its state before the last update_notebook_cell call.
+
+    Args:
+        workspace: Name or ID of the workspace
+        notebook_id: ID or name of the notebook
+        ctx: Context object containing client information
+    Returns:
+        A string confirming the restore or an error message.
+    """
+    try:
+        if ctx is None:
+            raise ValueError("Context (ctx) must be provided.")
+
+        backup_key = f"{ctx.client_id}_notebook_backup_{notebook_id}"
+        backup_content = __ctx_cache.get(backup_key)
+
+        if not backup_content:
+            return f"No backup found for notebook '{notebook_id}'. Restore only works within the same session after an update_notebook_cell call."
+
+        # Resolve workspace and notebook
+        fabric_client = FabricApiClient(get_azure_credentials(ctx.client_id, __ctx_cache))
+        (workspace_name, workspace_id) = await fabric_client.resolve_workspace_name_and_id(workspace)
+
+        resolved_id = notebook_id
+        display_name = notebook_id
+        if not _is_valid_uuid(notebook_id):
+            notebooks = await fabric_client.get_notebooks(workspace_id)
+            for nb in notebooks:
+                if nb.get("displayName") == notebook_id:
+                    resolved_id = nb["id"]
+                    display_name = nb["displayName"]
+                    break
+            else:
+                return f"Could not find notebook '{notebook_id}' in workspace '{workspace_name}'"
+        else:
+            try:
+                item_meta = await fabric_client.get_item(
+                    item_id=resolved_id,
+                    workspace_id=workspace_id,
+                    item_type="notebook",
+                )
+                display_name = item_meta.get("displayName") or "notebook"
+            except Exception:
+                display_name = "notebook"
+
+        ipynb_path = f"{display_name}.ipynb"
+        payload = {
+            "definition": {
+                "format": "ipynb",
+                "parts": [
+                    {
+                        "path": ipynb_path,
+                        "payload": base64.b64encode(backup_content.encode("utf-8")).decode("utf-8"),
+                        "payloadType": "InlineBase64",
+                    }
+                ],
+            }
+        }
+
+        try:
+            await fabric_client._make_request(
+                endpoint=f"workspaces/{workspace_id}/notebooks/{resolved_id}/updateDefinition",
+                method="post",
+                params=payload,
+                lro=True,
+            )
+        except Exception:
+            await fabric_client._make_request(
+                endpoint=f"workspaces/{workspace_id}/items/{resolved_id}/updateDefinition",
+                method="post",
+                params=payload,
+                lro=True,
+            )
+
+        # Clear the backup after successful restore
+        del __ctx_cache[backup_key]
+        logger.info(f"Restored notebook '{notebook_id}' from backup")
+        return f"Notebook '{display_name}' restored to its previous state."
+
+    except Exception as e:
+        logger.error(f"Error restoring notebook: {str(e)}")
+        return f"Error restoring notebook: {str(e)}"
+
 
 @mcp.tool()
 async def create_fabric_notebook(
