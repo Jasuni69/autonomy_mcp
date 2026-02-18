@@ -107,3 +107,81 @@ async def create_warehouse(
 
     except Exception as e:
         return f"Error creating warehouse: {str(e)}"
+
+
+@mcp.tool()
+async def update_warehouse(
+    warehouse: str,
+    display_name: Optional[str] = None,
+    description: Optional[str] = None,
+    workspace: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Update a warehouse (rename or change description).
+
+    Args:
+        warehouse: Name or ID of the warehouse to update
+        display_name: New display name (optional)
+        description: New description (optional)
+        workspace: Name or ID of the workspace (optional)
+        ctx: Context object containing client information
+    Returns:
+        A string confirming the update or an error message.
+    """
+    try:
+        fabric_client = FabricApiClient(get_azure_credentials(ctx.client_id, __ctx_cache))
+        workspace_ref = workspace or __ctx_cache.get(f"{ctx.client_id}_workspace")
+        if not workspace_ref:
+            return "Workspace not set. Please set a workspace using the 'set_workspace' command."
+
+        _, workspace_id = await fabric_client.resolve_workspace_name_and_id(workspace_ref)
+        _, warehouse_id = await fabric_client.resolve_item_name_and_id(
+            item=warehouse, type="Warehouse", workspace=workspace_id
+        )
+
+        await fabric_client.update_item(
+            workspace_id=workspace_id,
+            item_id=str(warehouse_id),
+            item_type="warehouse",
+            display_name=display_name,
+            description=description,
+        )
+        return f"Warehouse '{warehouse}' updated successfully."
+    except Exception as e:
+        return f"Error updating warehouse: {str(e)}"
+
+
+@mcp.tool()
+async def delete_warehouse(
+    warehouse: str,
+    workspace: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Delete a warehouse. This is irreversible.
+
+    Args:
+        warehouse: Name or ID of the warehouse to delete
+        workspace: Name or ID of the workspace (optional)
+        ctx: Context object containing client information
+    Returns:
+        A string confirming deletion or an error message.
+    """
+    try:
+        fabric_client = FabricApiClient(get_azure_credentials(ctx.client_id, __ctx_cache))
+        workspace_ref = workspace or __ctx_cache.get(f"{ctx.client_id}_workspace")
+        if not workspace_ref:
+            return "Workspace not set. Please set a workspace using the 'set_workspace' command."
+
+        _, workspace_id = await fabric_client.resolve_workspace_name_and_id(workspace_ref)
+        _, warehouse_id = await fabric_client.resolve_item_name_and_id(
+            item=warehouse, type="Warehouse", workspace=workspace_id
+        )
+
+        await fabric_client.delete_item(
+            workspace_id=workspace_id,
+            item_id=str(warehouse_id),
+            item_type="warehouse",
+        )
+        return f"Warehouse '{warehouse}' deleted successfully."
+    except Exception as e:
+        return f"Error deleting warehouse: {str(e)}"

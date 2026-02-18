@@ -77,11 +77,43 @@ async def semantic_model_refresh(
     workspace: Optional[str] = None,
     model: Optional[str] = None,
     refresh_type: str = "Full",
+    objects: Optional[str] = None,
+    commit_mode: Optional[str] = None,
+    max_parallelism: Optional[int] = None,
+    retry_count: Optional[int] = None,
+    apply_refresh_policy: Optional[bool] = None,
     ctx: Context = None,
 ) -> Dict[str, Any]:
+    """Trigger a refresh of a semantic model via Enhanced Refresh API.
+
+    Args:
+        workspace: Workspace name or ID
+        model: Semantic model name or ID
+        refresh_type: Full, Automatic, DataOnly, Calculate, ClearValues
+        objects: Selective refresh — comma-separated table names (e.g. "Sales,Products")
+        commit_mode: transactionalBatch (all-or-nothing) or partialBatch (commit what succeeds)
+        max_parallelism: Max parallel refresh operations (2-20)
+        retry_count: Number of retries on transient failures
+        apply_refresh_policy: Apply incremental refresh policy (True/False)
+        ctx: FastMCP context
+    """
     try:
         context = await _resolve_item(ctx, workspace, model, "SemanticModel")
-        payload = {"type": refresh_type}
+        payload: Dict[str, Any] = {"type": refresh_type}
+
+        if objects:
+            payload["objects"] = [
+                {"table": t.strip()} for t in objects.split(",") if t.strip()
+            ]
+        if commit_mode:
+            payload["commitMode"] = commit_mode
+        if max_parallelism is not None:
+            payload["maxParallelism"] = max_parallelism
+        if retry_count is not None:
+            payload["retryCount"] = retry_count
+        if apply_refresh_policy is not None:
+            payload["applyRefreshPolicy"] = apply_refresh_policy
+
         response = await context["fabric_client"]._make_request(
             endpoint=f"https://api.powerbi.com/v1.0/myorg/groups/{context['workspace_id']}/datasets/{context['item_id']}/refreshes",
             params=payload,

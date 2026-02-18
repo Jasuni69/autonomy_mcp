@@ -81,3 +81,69 @@ async def create_workspace(
         return str(resp)
     except Exception as e:
         return f"Error creating workspace: {str(e)}"
+
+
+@mcp.tool()
+async def update_workspace(
+    workspace: str,
+    display_name: str | None = None,
+    description: str | None = None,
+    ctx: Context = None,
+) -> str:
+    """Update an existing Fabric workspace (rename or change description).
+
+    Args:
+        workspace: Name or ID of the workspace to update
+        display_name: New display name (optional)
+        description: New description (optional)
+        ctx: Context object containing client information
+    Returns:
+        A string confirming the update or an error message.
+    """
+    try:
+        fabric_client = FabricApiClient(get_azure_credentials(ctx.client_id, __ctx_cache))
+        _, workspace_id = await fabric_client.resolve_workspace_name_and_id(workspace)
+
+        payload = {}
+        if display_name is not None:
+            payload["displayName"] = display_name
+        if description is not None:
+            payload["description"] = description
+
+        if not payload:
+            return "Nothing to update. Provide display_name or description."
+
+        await fabric_client._make_request(
+            endpoint=f"workspaces/{workspace_id}",
+            method="PATCH",
+            params=payload,
+        )
+        return f"Workspace '{workspace}' updated successfully."
+    except Exception as e:
+        return f"Error updating workspace: {str(e)}"
+
+
+@mcp.tool()
+async def delete_workspace(
+    workspace: str,
+    ctx: Context = None,
+) -> str:
+    """Delete a Fabric workspace and all items in it. This is irreversible.
+
+    Args:
+        workspace: Name or ID of the workspace to delete
+        ctx: Context object containing client information
+    Returns:
+        A string confirming deletion or an error message.
+    """
+    try:
+        fabric_client = FabricApiClient(get_azure_credentials(ctx.client_id, __ctx_cache))
+        _, workspace_id = await fabric_client.resolve_workspace_name_and_id(workspace)
+
+        await fabric_client._make_request(
+            endpoint=f"workspaces/{workspace_id}",
+            method="DELETE",
+        )
+        return f"Workspace '{workspace}' deleted successfully."
+    except Exception as e:
+        return f"Error deleting workspace: {str(e)}"

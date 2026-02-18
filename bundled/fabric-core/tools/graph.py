@@ -96,26 +96,56 @@ async def graph_user(email: str, ctx: Context) -> Dict[str, Any]:
         return {"error": str(exc)}
 
 
+def _parse_recipients(value: str) -> list:
+    """Parse comma-separated email addresses into Graph recipient format."""
+    return [
+        {"emailAddress": {"address": addr.strip()}}
+        for addr in value.split(",")
+        if addr.strip()
+    ]
+
+
 @mcp.tool()
 async def graph_mail(
     to: str,
     subject: str,
     body: str,
-    ctx: Context,
+    cc: Optional[str] = None,
+    bcc: Optional[str] = None,
+    importance: Optional[str] = None,
+    ctx: Context = None,
 ) -> Dict[str, Any]:
-    """Send mail via Microsoft Graph on behalf of the current identity."""
+    """Send mail via Microsoft Graph on behalf of the current identity.
+
+    Args:
+        to: Recipient email address(es), comma-separated for multiple
+        subject: Email subject line
+        body: Email body (HTML supported)
+        cc: CC recipient(s), comma-separated (optional)
+        bcc: BCC recipient(s), comma-separated (optional)
+        importance: Email importance: Low, Normal, or High (optional)
+        ctx: FastMCP context
+    """
 
     try:
         url = "https://graph.microsoft.com/v1.0/me/sendMail"
-        payload = {
-            "message": {
-                "subject": subject,
-                "body": {
-                    "contentType": "HTML",
-                    "content": body,
-                },
-                "toRecipients": [{"emailAddress": {"address": to}}],
+        message: Dict[str, Any] = {
+            "subject": subject,
+            "body": {
+                "contentType": "HTML",
+                "content": body,
             },
+            "toRecipients": _parse_recipients(to),
+        }
+        if cc:
+            message["ccRecipients"] = _parse_recipients(cc)
+        if bcc:
+            message["bccRecipients"] = _parse_recipients(bcc)
+        if importance and importance in ("Low", "Normal", "High"):
+            message["importance"] = importance
+
+        payload = {
+            "message": message,
             "saveToSentItems": True,
         }
         return _graph_request(ctx, "post", url, payload)
@@ -192,6 +222,47 @@ async def graph_drive(
         return {"error": str(exc)}
 
 
+
+
+@mcp.tool()
+async def list_teams(
+    ctx: Context = None,
+) -> Dict[str, Any]:
+    """List all Microsoft Teams the current user is a member of.
+
+    Returns team IDs and display names needed for posting messages.
+    """
+    try:
+        if ctx is None:
+            raise ValueError("Context (ctx) must be provided.")
+        url = "https://graph.microsoft.com/v1.0/me/joinedTeams"
+        return _graph_request(ctx, "get", url)
+    except Exception as exc:
+        logger.error("Error listing teams: %s", exc)
+        return {"error": str(exc)}
+
+
+@mcp.tool()
+async def list_channels(
+    team_id: str,
+    ctx: Context = None,
+) -> Dict[str, Any]:
+    """List all channels in a Microsoft Teams team.
+
+    Args:
+        team_id: The team ID (get from list_teams)
+        ctx: FastMCP context
+    Returns:
+        List of channels with IDs and display names.
+    """
+    try:
+        if ctx is None:
+            raise ValueError("Context (ctx) must be provided.")
+        url = f"https://graph.microsoft.com/v1.0/teams/{team_id}/channels"
+        return _graph_request(ctx, "get", url)
+    except Exception as exc:
+        logger.error("Error listing channels: %s", exc)
+        return {"error": str(exc)}
 
 
 # Alias management for Teams channels

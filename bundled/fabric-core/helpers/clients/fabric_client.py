@@ -65,6 +65,7 @@ class FabricApiClient:
         lro_poll_interval: int = 2,  # seconds between polls
         lro_timeout: int = 300,  # max seconds to wait
         token_scope: Optional[str] = None,
+        max_retries: int = 3,
     ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
         """
         Make an asynchronous call to the Fabric API.
@@ -72,6 +73,8 @@ class FabricApiClient:
         If use_pagination is True, it will automatically handle paginated responses.
 
         If lro is True, will poll for long-running operation completion.
+
+        Retries on 429 (Too Many Requests) and 503 (Service Unavailable) with exponential backoff.
         """
         import time
 
@@ -79,27 +82,53 @@ class FabricApiClient:
 
         if not use_pagination:
             url = self._build_url(endpoint=endpoint)
+            response = None
+            for attempt in range(max_retries + 1):
+                try:
+                    if method.upper() in ("POST", "PATCH"):
+                        response = requests.request(
+                            method=method.upper(),
+                            url=url,
+                            headers=self._get_headers(token_scope),
+                            json=params,
+                            timeout=120,
+                        )
+                    elif method.upper() == "DELETE":
+                        response = requests.delete(
+                            url,
+                            headers=self._get_headers(token_scope),
+                            timeout=120,
+                        )
+                    else:
+                        query_params = params.copy()
+                        if "maxResults" not in query_params:
+                            query_params["maxResults"] = self.config.max_results
+                        response = requests.request(
+                            method=method.upper(),
+                            url=url,
+                            headers=self._get_headers(token_scope),
+                            params=query_params,
+                            timeout=120,
+                        )
+
+                    # Retry on 429 and 503
+                    if response.status_code in (429, 503) and attempt < max_retries:
+                        retry_after = int(response.headers.get("Retry-After", 2 ** attempt))
+                        logger.warning(
+                            f"Got {response.status_code}, retrying in {retry_after}s (attempt {attempt + 1}/{max_retries})"
+                        )
+                        time.sleep(retry_after)
+                        continue
+                    break
+                except requests.ConnectionError as conn_err:
+                    if attempt < max_retries:
+                        wait = 2 ** attempt
+                        logger.warning(f"Connection error, retrying in {wait}s: {conn_err}")
+                        time.sleep(wait)
+                        continue
+                    raise
+
             try:
-                if method.upper() == "POST":
-                    # logger.debug(f"Authorization header: {self._get_headers()}")
-                    # logger.debug(f"Request URL: {url}")
-                    # logger.debug(f"Request parameters: {params}")
-                    response = requests.post(
-                        url,
-                        headers=self._get_headers(token_scope),
-                        json=params,
-                        timeout=120,
-                    )
-                else:
-                    if "maxResults" not in params:
-                        params["maxResults"] = self.config.max_results
-                    response = requests.request(
-                        method=method.upper(),
-                        url=url,
-                        headers=self._get_headers(token_scope),
-                        params=params,
-                        timeout=120,
-                    )
     
                 # LRO support: check for 202 and Operation-Location/Location
                 if lro and response.status_code == 202:
@@ -206,13 +235,11 @@ class FabricApiClient:
                         )
                         time.sleep(wait_time)
                 response.raise_for_status()
-                
-                # Handle empty response body
-                if not response.text or response.text.strip() == "":
-                    logger.warning(f"API returned empty response body for {method} {endpoint}")
-                    logger.warning(f"Status code: {response.status_code}")
-                    logger.warning(f"Headers: {dict(response.headers)}")
-                    # Return empty dict to indicate success without body
+
+                # Handle empty response body (common for DELETE 204, PATCH 200)
+                if response.status_code == 204 or not response.text or response.text.strip() == "":
+                    if method.upper() == "DELETE":
+                        return {"success": True, "status": response.status_code}
                     return {}
                 
                 try:
@@ -647,6 +674,59 @@ class FabricApiClient:
         
         return response
 
+    async def update_item(
+        self,
+        workspace_id: str,
+        item_id: str,
+        item_type: str,
+        display_name: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Update an item's metadata (rename, update description) via PATCH."""
+        if not _is_valid_uuid(workspace_id):
+            raise ValueError("Invalid workspace ID.")
+        if not _is_valid_uuid(item_id):
+            raise ValueError("Invalid item ID.")
+
+        payload: Dict[str, Any] = {}
+        if display_name is not None:
+            payload["displayName"] = display_name
+        if description is not None:
+            payload["description"] = description
+
+        if not payload:
+            raise ValueError("At least one of display_name or description must be provided.")
+
+        # Map item type to plural API path
+        type_lower = item_type.lower()
+        endpoint = f"workspaces/{workspace_id}/{type_lower}s/{item_id}"
+
+        return await self._make_request(
+            endpoint=endpoint,
+            method="PATCH",
+            params=payload,
+        )
+
+    async def delete_item(
+        self,
+        workspace_id: str,
+        item_id: str,
+        item_type: str,
+    ) -> Dict[str, Any]:
+        """Delete an item via DELETE."""
+        if not _is_valid_uuid(workspace_id):
+            raise ValueError("Invalid workspace ID.")
+        if not _is_valid_uuid(item_id):
+            raise ValueError("Invalid item ID.")
+
+        type_lower = item_type.lower()
+        endpoint = f"workspaces/{workspace_id}/{type_lower}s/{item_id}"
+
+        return await self._make_request(
+            endpoint=endpoint,
+            method="DELETE",
+        )
+
     async def resolve_item_name_and_id(
         self,
         item: str | UUID,
@@ -680,7 +760,7 @@ class FabricApiClient:
             # Check (optional)
             item_id = item
             try:
-                self._make_request(
+                await self._make_request(
                     endpoint=f"workspaces/{workspace_id}/items/{item_id}"
                 )
             except requests.RequestException:

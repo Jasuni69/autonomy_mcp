@@ -119,3 +119,85 @@ async def create_lakehouse(
         import traceback
         error_details = traceback.format_exc()
         return f"Error creating lakehouse '{name}':\n{str(e)}\n\nDetails:\n{error_details}"
+
+
+@mcp.tool()
+async def update_lakehouse(
+    lakehouse: str,
+    display_name: Optional[str] = None,
+    description: Optional[str] = None,
+    workspace: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Update a lakehouse (rename or change description).
+
+    Args:
+        lakehouse: Name or ID of the lakehouse to update
+        display_name: New display name (optional)
+        description: New description (optional)
+        workspace: Name or ID of the workspace (optional)
+        ctx: Context object containing client information
+    Returns:
+        A string confirming the update or an error message.
+    """
+    try:
+        credential = get_azure_credentials(ctx.client_id, __ctx_cache)
+        fabric_client = FabricApiClient(credential=credential)
+        ws = workspace or __ctx_cache.get(f"{ctx.client_id}_workspace")
+        if not ws:
+            return "Workspace not set. Please set a workspace using the 'set_workspace' command."
+
+        _, workspace_id = await fabric_client.resolve_workspace_name_and_id(ws)
+        _, lakehouse_id = await fabric_client.resolve_item_name_and_id(
+            item=lakehouse, type="Lakehouse", workspace=workspace_id
+        )
+
+        await fabric_client.update_item(
+            workspace_id=workspace_id,
+            item_id=str(lakehouse_id),
+            item_type="lakehouse",
+            display_name=display_name,
+            description=description,
+        )
+        return f"Lakehouse '{lakehouse}' updated successfully."
+    except Exception as e:
+        logger.error(f"Error updating lakehouse: {e}")
+        return f"Error updating lakehouse: {str(e)}"
+
+
+@mcp.tool()
+async def delete_lakehouse(
+    lakehouse: str,
+    workspace: Optional[str] = None,
+    ctx: Context = None,
+) -> str:
+    """Delete a lakehouse and its SQL endpoint. This is irreversible.
+
+    Args:
+        lakehouse: Name or ID of the lakehouse to delete
+        workspace: Name or ID of the workspace (optional)
+        ctx: Context object containing client information
+    Returns:
+        A string confirming deletion or an error message.
+    """
+    try:
+        credential = get_azure_credentials(ctx.client_id, __ctx_cache)
+        fabric_client = FabricApiClient(credential=credential)
+        ws = workspace or __ctx_cache.get(f"{ctx.client_id}_workspace")
+        if not ws:
+            return "Workspace not set. Please set a workspace using the 'set_workspace' command."
+
+        _, workspace_id = await fabric_client.resolve_workspace_name_and_id(ws)
+        _, lakehouse_id = await fabric_client.resolve_item_name_and_id(
+            item=lakehouse, type="Lakehouse", workspace=workspace_id
+        )
+
+        await fabric_client.delete_item(
+            workspace_id=workspace_id,
+            item_id=str(lakehouse_id),
+            item_type="lakehouse",
+        )
+        return f"Lakehouse '{lakehouse}' deleted successfully."
+    except Exception as e:
+        logger.error(f"Error deleting lakehouse: {e}")
+        return f"Error deleting lakehouse: {str(e)}"

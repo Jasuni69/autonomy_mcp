@@ -1,7 +1,7 @@
 # Fabric & Power BI Toolkit — Agent Instructions
 
 This workspace has 3 MCP servers configured:
-1. **fabric-core** — 83+ tools for Microsoft Fabric management (workspaces, lakehouses, SQL, DAX, notebooks, pipelines, OneLake, Graph)
+1. **fabric-core** — 90+ tools for Microsoft Fabric management (workspaces, lakehouses, SQL, DAX, notebooks, pipelines, OneLake, Graph)
 2. **powerbi-modeling** — Microsoft's Power BI Modeling MCP for live semantic model editing in Power BI Desktop
 3. **powerbi-translation-audit** — Translation validation tools (scan for untranslated content, PASS/FAIL verdict)
 
@@ -112,15 +112,15 @@ When you find translatable content that requires repetitive manual edits across 
 
 ## Complete Tool Reference (fabric-core)
 
-**84 tools** across 15 categories.
+**92 tools** across 15 categories.
 
 ### Quick Reference
 
 | Category | Tools | Description |
 |----------|-------|-------------|
-| Workspace | 3 | List, create, set active workspace |
-| Lakehouse | 3 | List, create, set active lakehouse |
-| Warehouse | 3 | List, create, set active warehouse |
+| Workspace | 5 | List, create, update, delete, set active workspace |
+| Lakehouse | 5 | List, create, update, delete, set active lakehouse |
+| Warehouse | 5 | List, create, update, delete, set active warehouse |
 | Tables & Delta | 9 | Schema, preview, history, optimize, vacuum |
 | SQL | 4 | Query, explain, export, endpoint resolution |
 | Semantic Models & DAX | 9 | Models, measures CRUD, DAX analysis |
@@ -131,7 +131,7 @@ When you find translatable content that requires repetitive manual edits across 
 | OneLake | 7 | File I/O, directory listing, shortcuts |
 | Data Loading | 1 | Load CSV/Parquet from URL into delta tables |
 | Items & Permissions | 4 | Resolve items, workspace role assignments |
-| Microsoft Graph | 8 | Users, mail, Teams messaging, OneDrive |
+| Microsoft Graph | 10 | Users, mail, Teams messaging/discovery, OneDrive |
 | Context | 1 | Clear session context |
 
 ### 1. Workspace Management
@@ -139,6 +139,10 @@ When you find translatable content that requires repetitive manual edits across 
 `list_workspaces()` — List all accessible workspaces.
 
 `create_workspace(display_name, capacity_id?, description?, domain_id?)` — Create workspace.
+
+`update_workspace(workspace, display_name?, description?)` — Rename or update workspace description.
+
+`delete_workspace(workspace)` — Delete workspace and all items. Irreversible.
 
 `set_workspace(workspace)` — Set active workspace. Required before most operations.
 
@@ -148,6 +152,10 @@ When you find translatable content that requires repetitive manual edits across 
 
 `create_lakehouse(name, workspace?, description?, enable_schemas=True, folder_id?)` — Create lakehouse. Schemas enabled by default.
 
+`update_lakehouse(lakehouse, display_name?, description?, workspace?)` — Rename or update lakehouse description.
+
+`delete_lakehouse(lakehouse, workspace?)` — Delete lakehouse and SQL endpoint. Irreversible.
+
 `set_lakehouse(lakehouse)` — Set active lakehouse for table/SQL ops.
 
 ### 3. Warehouse Management
@@ -155,6 +163,10 @@ When you find translatable content that requires repetitive manual edits across 
 `list_warehouses(workspace?)` — List warehouses.
 
 `create_warehouse(name, workspace?, description?, folder_id?)` — Create warehouse.
+
+`update_warehouse(warehouse, display_name?, description?, workspace?)` — Rename or update warehouse description.
+
+`delete_warehouse(warehouse, workspace?)` — Delete warehouse. Irreversible.
 
 `set_warehouse(warehouse)` — Set active warehouse for SQL ops.
 
@@ -212,7 +224,7 @@ When you find translatable content that requires repetitive manual edits across 
 
 `dax_query(dataset, query, workspace?)` — Execute DAX via Power BI REST API.
 
-`semantic_model_refresh(workspace?, model?, refresh_type="Full")` — Trigger refresh. Types: Full|Automatic|DataOnly|Calculate|ClearValues.
+`semantic_model_refresh(workspace?, model?, refresh_type="Full", objects?, commit_mode?, max_parallelism?, retry_count?, apply_refresh_policy?)` — Enhanced refresh. Supports selective table refresh (objects="Sales,Products"), transactional/partial commit, parallelism tuning.
 
 `report_export(workspace?, report?, format="pdf")` — Export report (pdf, pptx, png).
 
@@ -290,7 +302,11 @@ When you find translatable content that requires repetitive manual edits across 
 
 `graph_user(email)` — User lookup. Use "me" for current user.
 
-`graph_mail(to, subject, body)` — Send email.
+`graph_mail(to, subject, body, cc?, bcc?, importance?)` — Send email. Supports multiple recipients (comma-separated), CC/BCC, importance (Low/Normal/High).
+
+`list_teams()` — List all Teams the current user belongs to. Returns team IDs for messaging.
+
+`list_channels(team_id)` — List all channels in a team. Returns channel IDs for messaging.
 
 `graph_teams_message(team_id, channel_id, text, content_type?)` — Post to Teams channel.
 
@@ -314,7 +330,7 @@ When you find translatable content that requires repetitive manual edits across 
 
 | Tool | Issue |
 |------|-------|
-| `install_requirements` / `install_wheel` | Uses non-existent Spark endpoint. Fabric manages libraries through Environments API. |
+| `install_requirements` / `install_wheel` | Non-functional — returns guidance to use Environments API or Fabric portal instead. |
 | `create_measure` / `update_measure` / `delete_measure` / `get_model_schema` | Only works with user-created semantic models. Auto-generated lakehouse default models don't support `getDefinition`. |
 | `set_permissions` | Workspace-level only. Fabric REST API doesn't support item-level permissions. |
 | Lakehouse SQL | Read-only. No INSERT/UPDATE/DELETE/DDL. New delta tables take 5-10 min to appear. |

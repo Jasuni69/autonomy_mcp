@@ -200,10 +200,26 @@ class SQLClient:
         database: str,
         credential: DefaultAzureCredential,
     ) -> None:
+        self._server = server
+        self._database = database
+        self._credential = credential
         self.engine = _create_engine(server, database, credential)
 
+    def _refresh_engine(self) -> None:
+        """Recreate engine with fresh token. Azure tokens expire after ~1 hour."""
+        if self.engine:
+            self.engine.dispose()
+        self.engine = _create_engine(self._server, self._database, self._credential)
+
     def run_query(self, query: str) -> pl.DataFrame:
-        return pl.read_database(query, connection=self.engine)
+        try:
+            return pl.read_database(query, connection=self.engine)
+        except Exception as e:
+            if "login" in str(e).lower() or "token" in str(e).lower() or "expired" in str(e).lower():
+                logger.info("SQL token may have expired, refreshing engine...")
+                self._refresh_engine()
+                return pl.read_database(query, connection=self.engine)
+            raise
 
     def load_data(
         self,

@@ -192,23 +192,17 @@ async def install_requirements(
     requirements_txt: str = "",
     ctx: Context = None,
 ) -> Dict[str, Any]:
-    """Install Python requirements for the workspace Spark environment."""
+    """Install Python requirements for the workspace Spark environment.
 
-    try:
-        context = await _resolve_notebook_context(ctx, workspace, None, require_notebook=False)
-        payload = {
-            "requirements": requirements_txt,
-        }
-
-        response = await context["fabric_client"]._make_request(
-            endpoint=f"workspaces/{context['workspace_id']}/spark/installRequirements",
-            params=payload,
-            method="post",
-        )
-        return response
-    except Exception as exc:
-        logger.error("Error installing requirements: %s", exc)
-        return {"error": str(exc)}
+    NOTE: This tool is currently non-functional. Fabric manages libraries
+    through the Environments API, not the /spark/installRequirements endpoint.
+    Use the Fabric portal or Environments REST API to manage Spark libraries.
+    """
+    return {
+        "error": "Not supported. Fabric manages Spark libraries through the Environments API. "
+        "Use the Fabric portal > Workspace Settings > Spark Settings > Environment to install packages, "
+        "or use the Environments REST API: POST /workspaces/{workspaceId}/environments/{envId}/staging/libraries"
+    }
 
 
 @mcp.tool()
@@ -217,23 +211,17 @@ async def install_wheel(
     wheel_url: str = "",
     ctx: Context = None,
 ) -> Dict[str, Any]:
-    """Install a wheel package into the workspace Spark environment."""
+    """Install a wheel package into the workspace Spark environment.
 
-    try:
-        context = await _resolve_notebook_context(ctx, workspace, None, require_notebook=False)
-        payload = {
-            "wheelUrl": wheel_url,
-        }
-
-        response = await context["fabric_client"]._make_request(
-            endpoint=f"workspaces/{context['workspace_id']}/spark/installWheel",
-            params=payload,
-            method="post",
-        )
-        return response
-    except Exception as exc:
-        logger.error("Error installing wheel package: %s", exc)
-        return {"error": str(exc)}
+    NOTE: This tool is currently non-functional. Fabric manages libraries
+    through the Environments API, not the /spark/installWheel endpoint.
+    Use the Fabric portal or Environments REST API to manage Spark libraries.
+    """
+    return {
+        "error": "Not supported. Fabric manages Spark libraries through the Environments API. "
+        "Use the Fabric portal > Workspace Settings > Spark Settings > Environment to upload wheels, "
+        "or use the Environments REST API: POST /workspaces/{workspaceId}/environments/{envId}/staging/libraries"
+    }
 
 
 @mcp.tool()
@@ -241,14 +229,32 @@ async def cluster_info(
     workspace: Optional[str] = None,
     ctx: Context = None,
 ) -> Dict[str, Any]:
-    """Retrieve Spark cluster information for the workspace."""
+    """Retrieve Spark cluster/environment information for the workspace.
 
+    Returns workspace Spark settings via the Environments API.
+    """
     try:
         context = await _resolve_notebook_context(ctx, workspace, None, require_notebook=False)
-        response = await context["fabric_client"]._make_request(
-            endpoint=f"workspaces/{context['workspace_id']}/spark/settings"
+        # Try Spark settings endpoint first (may work in some Fabric versions)
+        try:
+            response = await context["fabric_client"]._make_request(
+                endpoint=f"workspaces/{context['workspace_id']}/spark/settings"
+            )
+            if response and not isinstance(response, dict):
+                return {"settings": response}
+            if response and "error" not in response:
+                return response
+        except Exception:
+            pass
+
+        # Fallback: list Environment items in the workspace
+        items = await context["fabric_client"].get_items(
+            workspace_id=context["workspace_id"], item_type="Environment"
         )
-        return response
+        if items:
+            envs = [{"id": i.get("id"), "name": i.get("displayName")} for i in items]
+            return {"environments": envs, "note": "Use Fabric portal to view detailed Spark settings."}
+        return {"note": "No environments found. Spark settings are managed through the Fabric portal or Environments API."}
     except Exception as exc:
         logger.error("Error retrieving cluster info: %s", exc)
         return {"error": str(exc)}
