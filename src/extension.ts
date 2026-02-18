@@ -121,6 +121,28 @@ async function runSetup(
         }
       }
 
+      // Step 1c: Check ODBC Driver 18
+      if (!odbcResult.ok) {
+        outputChannel.appendLine(`WARN: ${odbcResult.message}`);
+        if (manual) {
+          const action = await vscode.window.showWarningMessage(
+            'ODBC Driver 18 not found (optional — only needed for SQL queries against lakehouses/warehouses).',
+            'Install Now (winget)',
+            'Download Page',
+            'Skip'
+          );
+          if (action === 'Install Now (winget)') {
+            const terminal = vscode.window.createTerminal('ODBC Driver Install');
+            terminal.show();
+            terminal.sendText('winget install -e --id Microsoft.msodbcsql18');
+          } else if (action === 'Download Page') {
+            vscode.env.openExternal(vscode.Uri.parse(
+              'https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server'
+            ));
+          }
+        }
+      }
+
       // Step 2: Install fabric-core globally
       let fabricCoreOk = false;
       if (pythonResult.ok && uvResult.ok) {

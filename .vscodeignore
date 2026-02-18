@@ -14,4 +14,5 @@ tsconfig.json
 *.jpg
 *.vsix
 *.md
+!README.md
 !bundled/**/*.md

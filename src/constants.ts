@@ -3,7 +3,7 @@ import * as path from 'path';
 
 export const SETUP_FLAG = 'fabricPowerbi.setupComplete';
 export const SETUP_VERSION = 'fabricPowerbi.setupVersion';
-export const CURRENT_VERSION = '1.0.0';
+export const CURRENT_VERSION = '1.1.0';
 
 /** Global install directory for MCP servers */
 export const GLOBAL_MCP_DIR = path.join(os.homedir(), '.fabric-mcp');
