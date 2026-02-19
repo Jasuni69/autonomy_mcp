@@ -1,6 +1,6 @@
 from tools.workspace import set_workspace, list_workspaces, create_workspace
 from tools.warehouse import set_warehouse, list_warehouses, create_warehouse
-from tools.lakehouse import set_lakehouse, list_lakehouses, create_lakehouse
+from tools.lakehouse import set_lakehouse, list_lakehouses, create_lakehouse, lakehouse_table_maintenance
 from tools.table import (
     set_table,
     list_tables,
@@ -94,6 +94,49 @@ from tools.graph import (
     graph_teams_message_alias,
 )
 from tools.sql_endpoint import get_sql_endpoint as get_sql_endpoint_tool
+from tools.deployment_pipeline import (
+    list_deployment_pipelines,
+    create_deployment_pipeline,
+    get_deployment_pipeline,
+    update_deployment_pipeline,
+    delete_deployment_pipeline,
+    list_deployment_pipeline_stages,
+    list_deployment_pipeline_stage_items,
+    deploy_stage_content,
+    assign_workspace_to_stage,
+    unassign_workspace_from_stage,
+)
+from tools.capacity import list_capacities
+from tools.raw_api import raw_api_call
+from tools.environment import (
+    list_environments,
+    create_environment,
+    get_environment,
+    update_environment,
+    delete_environment,
+    publish_environment,
+    cancel_publish_environment,
+)
+from tools.connection import (
+    list_connections,
+    create_connection,
+    get_connection,
+    update_connection,
+    delete_connection,
+    list_supported_connection_types,
+)
+from tools.admin import list_tenant_settings
+from tools.git import (
+    git_connect,
+    git_disconnect,
+    git_get_connection,
+    git_get_status,
+    git_commit_to_git,
+    git_update_from_git,
+    git_initialize_connection,
+    git_get_my_credentials,
+    git_update_my_credentials,
+)
 
 __all__ = [
     "set_workspace",
@@ -178,6 +221,42 @@ __all__ = [
     "onelake_create_shortcut",
     "onelake_list_shortcuts",
     "onelake_delete_shortcut",
+    "list_deployment_pipelines",
+    "create_deployment_pipeline",
+    "get_deployment_pipeline",
+    "update_deployment_pipeline",
+    "delete_deployment_pipeline",
+    "list_deployment_pipeline_stages",
+    "list_deployment_pipeline_stage_items",
+    "deploy_stage_content",
+    "assign_workspace_to_stage",
+    "unassign_workspace_from_stage",
+    "git_connect",
+    "git_disconnect",
+    "git_get_connection",
+    "git_get_status",
+    "git_commit_to_git",
+    "git_update_from_git",
+    "git_initialize_connection",
+    "git_get_my_credentials",
+    "git_update_my_credentials",
+    "list_capacities",
+    "raw_api_call",
+    "lakehouse_table_maintenance",
+    "list_environments",
+    "create_environment",
+    "get_environment",
+    "update_environment",
+    "delete_environment",
+    "publish_environment",
+    "cancel_publish_environment",
+    "list_connections",
+    "create_connection",
+    "get_connection",
+    "update_connection",
+    "delete_connection",
+    "list_supported_connection_types",
+    "list_tenant_settings",
 ]
 
 get_sql_endpoint = get_sql_endpoint_tool

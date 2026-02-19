@@ -1,7 +1,7 @@
 # Fabric & Power BI Toolkit — Agent Instructions
 
 This workspace has 3 MCP servers configured:
-1. **fabric-core** — 90+ tools for Microsoft Fabric management (workspaces, lakehouses, SQL, DAX, notebooks, pipelines, OneLake, Graph)
+1. **fabric-core** — 127+ tools for Microsoft Fabric management (workspaces, lakehouses, SQL, DAX, notebooks, pipelines, OneLake, Graph, Git, CI/CD, environments, connections, admin, raw API)
 2. **powerbi-modeling** — Microsoft's Power BI Modeling MCP for live semantic model editing in Power BI Desktop
 3. **powerbi-translation-audit** — Translation validation tools (scan for untranslated content, PASS/FAIL verdict)
 
@@ -112,14 +112,14 @@ When you find translatable content that requires repetitive manual edits across 
 
 ## Complete Tool Reference (fabric-core)
 
-**92 tools** across 15 categories.
+**127 tools** across 22 categories.
 
 ### Quick Reference
 
 | Category | Tools | Description |
 |----------|-------|-------------|
 | Workspace | 5 | List, create, update, delete, set active workspace |
-| Lakehouse | 5 | List, create, update, delete, set active lakehouse |
+| Lakehouse | 6 | List, create, update, delete, set active lakehouse, table maintenance |
 | Warehouse | 5 | List, create, update, delete, set active warehouse |
 | Tables & Delta | 9 | Schema, preview, history, optimize, vacuum |
 | SQL | 4 | Query, explain, export, endpoint resolution |
@@ -132,6 +132,13 @@ When you find translatable content that requires repetitive manual edits across 
 | Data Loading | 1 | Load CSV/Parquet from URL into delta tables |
 | Items & Permissions | 4 | Resolve items, workspace role assignments |
 | Microsoft Graph | 10 | Users, mail, Teams messaging/discovery, OneDrive |
+| Git Integration | 9 | Connect, commit, pull, status, credentials |
+| Deployment Pipelines | 10 | CRUD, deploy stages, assign workspaces (CI/CD) |
+| Capacities | 1 | List available Fabric/Power BI capacities |
+| Raw API | 1 | Universal escape hatch — call any Microsoft API |
+| Environments | 7 | CRUD, publish, cancel publish (Spark/Python library management) |
+| Connections | 6 | CRUD, list supported types (data source connections) |
+| Admin | 1 | Tenant settings (requires Fabric Admin role) |
 | Context | 1 | Clear session context |
 
 ### 1. Workspace Management
@@ -157,6 +164,8 @@ When you find translatable content that requires repetitive manual edits across 
 `delete_lakehouse(lakehouse, workspace?)` — Delete lakehouse and SQL endpoint. Irreversible.
 
 `set_lakehouse(lakehouse)` — Set active lakehouse for table/SQL ops.
+
+`lakehouse_table_maintenance(table_name, lakehouse?, workspace?, schema_name?, v_order=True, z_order_by?, vacuum_retention?)` — Native Fabric table maintenance job (optimize + vacuum). Uses Jobs API instead of notebooks. vacuum_retention format: "7.00:00:00" for 7 days.
 
 ### 3. Warehouse Management
 
@@ -320,9 +329,120 @@ When you find translatable content that requires repetitive manual edits across 
 
 `graph_drive(drive_id, path?)` — Browse OneDrive/SharePoint files.
 
-### 15. Context Management
+### 15. Git Integration (CI/CD)
+
+`git_connect(workspace?, git_provider_type, repository_name, branch_name, directory_name, organization_name?, project_name?, owner_name?, connection_id?)` — Connect workspace to Git repo (Azure DevOps or GitHub).
+
+`git_disconnect(workspace?)` — Disconnect workspace from Git.
+
+`git_get_connection(workspace?)` — Get Git connection details for workspace.
+
+`git_get_status(workspace?)` — Get sync status: workspace head, remote commit hash, pending changes with conflict detection. LRO.
+
+`git_commit_to_git(workspace?, mode="All", comment?, workspace_head?, items?)` — Commit workspace changes to Git. mode="All" or "Selective" (pass comma-separated objectIds). LRO.
+
+`git_update_from_git(remote_commit_hash, workspace?, workspace_head?, conflict_resolution_policy?, allow_override_items=True)` — Pull Git changes into workspace. Conflict resolution: "PreferRemote" or "PreferWorkspace". LRO.
+
+`git_initialize_connection(workspace?, initialization_strategy?)` — Initialize Git connection after connect. Strategy: "PreferWorkspace" or "PreferRemote". LRO.
+
+`git_get_my_credentials(workspace?)` — Get current user's Git credentials config.
+
+`git_update_my_credentials(source, workspace?, connection_id?)` — Update Git credentials. Source: "Automatic", "ConfiguredConnection", or "None".
+
+### 16. Deployment Pipelines (CI/CD)
+
+`list_deployment_pipelines()` — List all deployment pipelines accessible to the user.
+
+`create_deployment_pipeline(display_name, description?)` — Create a new deployment pipeline.
+
+`get_deployment_pipeline(pipeline_id)` — Get pipeline metadata.
+
+`update_deployment_pipeline(pipeline_id, display_name?, description?)` — Update pipeline properties.
+
+`delete_deployment_pipeline(pipeline_id)` — Delete a deployment pipeline.
+
+`list_deployment_pipeline_stages(pipeline_id)` — List stages (typically Dev, Test, Production).
+
+`list_deployment_pipeline_stage_items(pipeline_id, stage_id)` — List items in a stage.
+
+`deploy_stage_content(pipeline_id, source_stage_id, target_stage_id, items?, note?)` — Deploy from one stage to another. Pass comma-separated objectIds for selective deploy. LRO.
+
+`assign_workspace_to_stage(pipeline_id, stage_id, workspace)` — Assign workspace to a pipeline stage.
+
+`unassign_workspace_from_stage(pipeline_id, stage_id)` — Unassign workspace from a stage.
+
+### 17. Capacities
+
+`list_capacities()` — List all Fabric/Power BI capacities accessible to the user. Returns IDs, names, SKUs, regions.
+
+### 18. Raw API (Escape Hatch)
+
+`raw_api_call(endpoint, method="GET", audience="fabric", body?)` — Call any Microsoft API directly. Audiences: "fabric", "powerbi", "graph", "storage", "azure". Handles authentication automatically. Use when no dedicated tool exists.
+
+### 19. Environments
+
+`list_environments(workspace?)` — List all environments in workspace.
+
+`create_environment(display_name, workspace?, description?)` — Create environment.
+
+`get_environment(environment_id, workspace?)` — Get environment details.
+
+`update_environment(environment_id, display_name?, description?, workspace?)` — Update environment.
+
+`delete_environment(environment_id, workspace?)` — Delete environment.
+
+`publish_environment(environment_id, workspace?)` — Publish staged environment config (libraries, Spark settings). LRO — can take several minutes.
+
+`cancel_publish_environment(environment_id, workspace?)` — Cancel in-progress publish.
+
+### 20. Connections
+
+`list_connections()` — List all connections accessible to user.
+
+`create_connection(display_name, connectivity_type, connection_details, credential_details, privacy_level?)` — Create connection. connectivity_type: ShareableCloud|OnPremisesGateway|VirtualNetworkGateway|OnPremisesGatewayPersonal. connection_details and credential_details are JSON strings.
+
+`get_connection(connection_id)` — Get connection details.
+
+`update_connection(connection_id, connectivity_type?, connection_details?, credential_details?, display_name?, privacy_level?)` — Update connection properties. JSON string params where applicable.
+
+`delete_connection(connection_id)` — Delete connection.
+
+`list_supported_connection_types(gateway_id?)` — List supported connection type definitions. Optional gateway filter.
+
+### 21. Admin
+
+`list_tenant_settings()` — List all Fabric tenant settings. Requires Fabric Admin role. Returns feature toggles, capacity delegation, export settings, etc.
+
+### 22. Context Management
 
 `clear_context()` — Clear all session context.
+
+---
+
+## CI/CD Workflow Guide
+
+### Connecting a Workspace to Git
+
+1. `set_workspace("My Dev Workspace")`
+2. `git_connect(git_provider_type="AzureDevOps", organization_name="MyOrg", project_name="MyProject", repository_name="fabric-repo", branch_name="main", directory_name="dev")`
+3. `git_initialize_connection(initialization_strategy="PreferWorkspace")` — first sync
+4. `git_get_status()` — check what changed
+
+### Committing Changes
+
+1. `git_get_status()` — get workspaceHead and see changes
+2. `git_commit_to_git(workspace_head="<sha>", comment="Added new measures")`
+
+### Pulling from Git
+
+1. `git_get_status()` — get remoteCommitHash
+2. `git_update_from_git(remote_commit_hash="<sha>", conflict_resolution_policy="PreferRemote", allow_override_items=True)`
+
+### Deploying Across Environments
+
+1. `list_deployment_pipelines()` — find pipeline ID
+2. `list_deployment_pipeline_stages(pipeline_id)` — get stage IDs
+3. `deploy_stage_content(pipeline_id, source_stage_id="<dev>", target_stage_id="<test>", note="Sprint 42 release")`
 
 ---
 

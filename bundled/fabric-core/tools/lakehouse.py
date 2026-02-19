@@ -10,7 +10,7 @@ from helpers.logging_config import get_logger
 # import sempy_labs as labs
 # import sempy_labs.lakehouse as slh
 
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 logger = get_logger(__name__)
 
@@ -201,3 +201,95 @@ async def delete_lakehouse(
     except Exception as e:
         logger.error(f"Error deleting lakehouse: {e}")
         return f"Error deleting lakehouse: {str(e)}"
+
+
+@mcp.tool()
+async def lakehouse_table_maintenance(
+    table_name: str,
+    lakehouse: Optional[str] = None,
+    workspace: Optional[str] = None,
+    schema_name: Optional[str] = None,
+    v_order: bool = True,
+    z_order_by: Optional[str] = None,
+    vacuum_retention: Optional[str] = None,
+    ctx: Context = None,
+) -> Dict[str, Any]:
+    """Run Fabric-native table maintenance job (optimize + vacuum) on a lakehouse delta table.
+
+    Unlike optimize_delta/vacuum_delta which use notebooks, this uses the native
+    Fabric Jobs API for table maintenance. Runs as a background job.
+
+    Args:
+        table_name: Name of the delta table to maintain
+        lakehouse: Name or ID of the lakehouse (optional, uses active)
+        workspace: Name or ID of the workspace (optional, uses active)
+        schema_name: Schema name if lakehouse has schemas enabled (optional)
+        v_order: Enable V-Order optimization during compaction (default: True)
+        z_order_by: Comma-separated column names for Z-Order optimization (optional)
+        vacuum_retention: Retention period in "d.hh:mm:ss" format, e.g. "7.00:00:00" for 7 days (optional).
+                         If not provided, only optimize runs (no vacuum).
+        ctx: Context object containing client information
+
+    Returns:
+        Dictionary with job instance ID and status, or an error.
+    """
+    try:
+        if ctx is None:
+            raise ValueError("Context is required.")
+
+        credential = get_azure_credentials(ctx.client_id, __ctx_cache)
+        fabric_client = FabricApiClient(credential=credential)
+
+        ws = workspace or __ctx_cache.get(f"{ctx.client_id}_workspace")
+        if not ws:
+            return {"error": "Workspace not set. Use set_workspace first."}
+
+        lh = lakehouse or __ctx_cache.get(f"{ctx.client_id}_lakehouse")
+        if not lh:
+            return {"error": "Lakehouse not set. Use set_lakehouse first."}
+
+        _, workspace_id = await fabric_client.resolve_workspace_name_and_id(ws)
+        _, lakehouse_id = await fabric_client.resolve_item_name_and_id(
+            item=lh, type="Lakehouse", workspace=workspace_id
+        )
+
+        execution_data: Dict[str, Any] = {"tableName": table_name}
+        if schema_name:
+            execution_data["schemaName"] = schema_name
+
+        optimize_settings: Dict[str, Any] = {"vOrder": v_order}
+        if z_order_by:
+            columns = [c.strip() for c in z_order_by.split(",") if c.strip()]
+            optimize_settings["zOrderBy"] = columns
+        execution_data["optimizeSettings"] = optimize_settings
+
+        if vacuum_retention:
+            execution_data["vacuumSettings"] = {
+                "retentionPeriod": vacuum_retention
+            }
+
+        payload = {"executionData": execution_data}
+
+        response = await fabric_client._make_request(
+            endpoint=(
+                f"workspaces/{workspace_id}/lakehouses/{lakehouse_id}"
+                f"/jobs/instances?jobType=TableMaintenance"
+            ),
+            method="post",
+            params=payload,
+            lro=True,
+            lro_poll_interval=5,
+            lro_timeout=600,
+        )
+
+        if isinstance(response, dict):
+            return {
+                "success": True,
+                "table": table_name,
+                "lakehouse_id": str(lakehouse_id),
+                "result": response,
+            }
+        return {"success": True, "table": table_name, "result": response}
+    except Exception as e:
+        logger.error(f"Error running table maintenance on '{table_name}': {e}")
+        return {"error": str(e)}
