@@ -4,7 +4,7 @@ Auto-configures MCP servers for [Claude Code](https://claude.ai/claude-code) to 
 
 ## What You Get
 
-- **fabric-core** — 83+ MCP tools for Microsoft Fabric (workspaces, lakehouses, SQL, DAX, notebooks, pipelines, OneLake, Microsoft Graph)
+- **fabric-core** — 138+ MCP tools for Microsoft Fabric (workspaces, lakehouses, SQL, DAX, notebooks, pipelines, OneLake, Microsoft Graph, Git, CI/CD, environments, connections, admin, Spark jobs)
 - **powerbi-modeling** — Live semantic model editing in Power BI Desktop (measures, columns, translations, relationships)
 - **powerbi-translation-audit** — Validates translation coverage with PASS/FAIL verdicts
 - **CLAUDE.md knowledge base** — Comprehensive agent instructions so Claude knows how to use all tools correctly
