@@ -1,6 +1,6 @@
 from tools.workspace import set_workspace, list_workspaces, create_workspace
 from tools.warehouse import set_warehouse, list_warehouses, create_warehouse
-from tools.lakehouse import set_lakehouse, list_lakehouses, create_lakehouse, lakehouse_table_maintenance
+from tools.lakehouse import set_lakehouse, list_lakehouses, create_lakehouse, lakehouse_table_maintenance, lakehouse_load_table
 from tools.table import (
     set_table,
     list_tables,
@@ -126,6 +126,20 @@ from tools.connection import (
     list_supported_connection_types,
 )
 from tools.admin import list_tenant_settings
+from tools.item_definition import (
+    export_item_definition,
+    import_item,
+    update_item_definition,
+)
+from tools.spark_job_definition import (
+    list_spark_job_definitions,
+    create_spark_job_definition,
+    get_spark_job_definition,
+    update_spark_job_definition,
+    delete_spark_job_definition,
+    get_spark_job_definition_definition,
+    update_spark_job_definition_definition,
+)
 from tools.git import (
     git_connect,
     git_disconnect,
@@ -257,6 +271,17 @@ __all__ = [
     "delete_connection",
     "list_supported_connection_types",
     "list_tenant_settings",
+    "lakehouse_load_table",
+    "export_item_definition",
+    "import_item",
+    "update_item_definition",
+    "list_spark_job_definitions",
+    "create_spark_job_definition",
+    "get_spark_job_definition",
+    "update_spark_job_definition",
+    "delete_spark_job_definition",
+    "get_spark_job_definition_definition",
+    "update_spark_job_definition_definition",
 ]
 
 get_sql_endpoint = get_sql_endpoint_tool

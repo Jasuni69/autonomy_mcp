@@ -1,7 +1,7 @@
 # Fabric & Power BI Toolkit — Agent Instructions
 
 This workspace has 3 MCP servers configured:
-1. **fabric-core** — 127+ tools for Microsoft Fabric management (workspaces, lakehouses, SQL, DAX, notebooks, pipelines, OneLake, Graph, Git, CI/CD, environments, connections, admin, raw API)
+1. **fabric-core** — 138+ tools for Microsoft Fabric management (workspaces, lakehouses, SQL, DAX, notebooks, pipelines, OneLake, Graph, Git, CI/CD, environments, connections, admin, item definitions, Spark jobs, raw API)
 2. **powerbi-modeling** — Microsoft's Power BI Modeling MCP for live semantic model editing in Power BI Desktop
 3. **powerbi-translation-audit** — Translation validation tools (scan for untranslated content, PASS/FAIL verdict)
 
@@ -112,14 +112,14 @@ When you find translatable content that requires repetitive manual edits across 
 
 ## Complete Tool Reference (fabric-core)
 
-**127 tools** across 22 categories.
+**138 tools** across 24 categories.
 
 ### Quick Reference
 
 | Category | Tools | Description |
 |----------|-------|-------------|
 | Workspace | 5 | List, create, update, delete, set active workspace |
-| Lakehouse | 6 | List, create, update, delete, set active lakehouse, table maintenance |
+| Lakehouse | 7 | List, create, update, delete, set active, table maintenance, load table |
 | Warehouse | 5 | List, create, update, delete, set active warehouse |
 | Tables & Delta | 9 | Schema, preview, history, optimize, vacuum |
 | SQL | 4 | Query, explain, export, endpoint resolution |
@@ -139,6 +139,8 @@ When you find translatable content that requires repetitive manual edits across 
 | Environments | 7 | CRUD, publish, cancel publish (Spark/Python library management) |
 | Connections | 6 | CRUD, list supported types (data source connections) |
 | Admin | 1 | Tenant settings (requires Fabric Admin role) |
+| Item Definitions | 3 | Export/import/update any Fabric item definition (Base64) |
+| Spark Job Definitions | 7 | CRUD, get/update definition for production Spark jobs |
 | Context | 1 | Clear session context |
 
 ### 1. Workspace Management
@@ -166,6 +168,8 @@ When you find translatable content that requires repetitive manual edits across 
 `set_lakehouse(lakehouse)` — Set active lakehouse for table/SQL ops.
 
 `lakehouse_table_maintenance(table_name, lakehouse?, workspace?, schema_name?, v_order=True, z_order_by?, vacuum_retention?)` — Native Fabric table maintenance job (optimize + vacuum). Uses Jobs API instead of notebooks. vacuum_retention format: "7.00:00:00" for 7 days.
+
+`lakehouse_load_table(table_name, relative_path, path_type="File", mode="Overwrite", file_format="Csv", header=True, delimiter=",", recursive=False, lakehouse?, workspace?)` — Load data from OneLake Files into a delta table via Fabric API. Source must exist in lakehouse Files section. Supports CSV and Parquet. LRO.
 
 ### 3. Warehouse Management
 
@@ -413,7 +417,31 @@ When you find translatable content that requires repetitive manual edits across 
 
 `list_tenant_settings()` — List all Fabric tenant settings. Requires Fabric Admin role. Returns feature toggles, capacity delegation, export settings, etc.
 
-### 22. Context Management
+### 22. Item Definitions (Generic Import/Export)
+
+`export_item_definition(item_id, workspace?, format?)` — Export any Fabric item's definition (Notebook, SemanticModel, DataPipeline, etc.). Returns Base64-encoded parts. LRO.
+
+`import_item(display_name, item_type, workspace?, description?, definition?, folder_id?)` — Create a new Fabric item with optional definition. item_type: Lakehouse, Notebook, SemanticModel, Report, DataPipeline, SparkJobDefinition, Environment, Warehouse, etc. definition is a JSON string with parts array.
+
+`update_item_definition(item_id, definition, workspace?)` — Replace an item's definition. Full replacement only — no partial updates. definition is a JSON string. LRO.
+
+### 23. Spark Job Definitions
+
+`list_spark_job_definitions(workspace?)` — List all Spark Job Definitions in workspace.
+
+`create_spark_job_definition(display_name, workspace?, description?, definition?, folder_id?)` — Create Spark Job Definition. Optional definition JSON with format "SparkJobDefinitionV1" or "SparkJobDefinitionV2".
+
+`get_spark_job_definition(spark_job_definition_id, workspace?)` — Get Spark Job Definition metadata.
+
+`update_spark_job_definition(spark_job_definition_id, display_name?, description?, workspace?)` — Update name/description.
+
+`delete_spark_job_definition(spark_job_definition_id, workspace?)` — Delete Spark Job Definition.
+
+`get_spark_job_definition_definition(spark_job_definition_id, workspace?, format?)` — Get content definition (Base64 parts). LRO. Format: "SparkJobDefinitionV1" or "SparkJobDefinitionV2".
+
+`update_spark_job_definition_definition(spark_job_definition_id, definition, workspace?)` — Update content definition. definition is a JSON string. LRO.
+
+### 24. Context Management
 
 `clear_context()` — Clear all session context.
 

@@ -293,3 +293,100 @@ async def lakehouse_table_maintenance(
     except Exception as e:
         logger.error(f"Error running table maintenance on '{table_name}': {e}")
         return {"error": str(e)}
+
+
+@mcp.tool()
+async def lakehouse_load_table(
+    table_name: str,
+    relative_path: str,
+    path_type: str = "File",
+    mode: str = "Overwrite",
+    file_format: str = "Csv",
+    header: bool = True,
+    delimiter: str = ",",
+    recursive: bool = False,
+    lakehouse: Optional[str] = None,
+    workspace: Optional[str] = None,
+    ctx: Context = None,
+) -> Dict[str, Any]:
+    """Load data from OneLake Files into a lakehouse delta table via the official Fabric API.
+
+    The source file must already exist in the lakehouse's Files section
+    (upload via onelake_write or load_data_from_url first).
+
+    Args:
+        table_name: Name of the destination delta table (created if not exists)
+        relative_path: Path to source file/folder relative to lakehouse root,
+                       e.g. "Files/raw/sales.csv" or "Files/raw/parquet_folder"
+        path_type: "File" for a single file, "Folder" for a directory of files
+        mode: "Overwrite" replaces table, "Append" adds rows
+        file_format: "Csv" or "Parquet"
+        header: Whether CSV has a header row (ignored for Parquet)
+        delimiter: CSV delimiter character (ignored for Parquet)
+        recursive: Search subfolders when path_type is "Folder"
+        lakehouse: Name or ID of the lakehouse (optional, uses active)
+        workspace: Name or ID of the workspace (optional, uses active)
+        ctx: Context object containing client information
+
+    Returns:
+        Dictionary with operation result or an error.
+    """
+    try:
+        if ctx is None:
+            raise ValueError("Context is required.")
+
+        credential = get_azure_credentials(ctx.client_id, __ctx_cache)
+        fabric_client = FabricApiClient(credential=credential)
+
+        ws = workspace or __ctx_cache.get(f"{ctx.client_id}_workspace")
+        if not ws:
+            return {"error": "Workspace not set. Use set_workspace first."}
+
+        lh = lakehouse or __ctx_cache.get(f"{ctx.client_id}_lakehouse")
+        if not lh:
+            return {"error": "Lakehouse not set. Use set_lakehouse first."}
+
+        _, workspace_id = await fabric_client.resolve_workspace_name_and_id(ws)
+        _, lakehouse_id = await fabric_client.resolve_item_name_and_id(
+            item=lh, type="Lakehouse", workspace=workspace_id
+        )
+
+        payload: Dict[str, Any] = {
+            "relativePath": relative_path,
+            "pathType": path_type,
+            "mode": mode,
+            "recursive": recursive,
+        }
+
+        fmt = file_format.strip().lower()
+        if fmt == "csv":
+            payload["formatOptions"] = {
+                "format": "Csv",
+                "header": header,
+                "delimiter": delimiter,
+            }
+        elif fmt == "parquet":
+            payload["formatOptions"] = {"format": "Parquet"}
+
+        response = await fabric_client._make_request(
+            endpoint=(
+                f"workspaces/{workspace_id}/lakehouses/{lakehouse_id}"
+                f"/tables/{table_name}/load"
+            ),
+            method="post",
+            params=payload,
+            lro=True,
+            lro_poll_interval=5,
+            lro_timeout=600,
+        )
+
+        return {
+            "success": True,
+            "table": table_name,
+            "source": relative_path,
+            "mode": mode,
+            "result": response if isinstance(response, dict) else str(response),
+        }
+    except Exception as e:
+        logger.error(f"Error loading table '{table_name}': {e}")
+        return {"error": str(e)}

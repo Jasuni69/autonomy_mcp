@@ -1,8 +1,8 @@
 {
   "name": "fabric-powerbi-toolkit",
   "displayName": "Fabric & Power BI Toolkit for Claude",
-  "description": "Auto-configures MCP servers for Microsoft Fabric (127+ tools), Power BI Modeling, and Translation Audit. Generates CLAUDE.md knowledge base for Claude Code.",
-  "version": "1.6.1",
+  "description": "Auto-configures MCP servers for Microsoft Fabric (138+ tools), Power BI Modeling, and Translation Audit. Generates CLAUDE.md knowledge base for Claude Code.",
+  "version": "1.7.0",
   "publisher": "JasonNicolini",
   "license": "MIT",
   "engines": {
