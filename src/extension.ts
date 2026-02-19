@@ -11,6 +11,7 @@ import {
   SETUP_FLAG, SETUP_VERSION, CURRENT_VERSION,
   GLOBAL_MCP_DIR, FABRIC_CORE_DIR, TRANSLATION_AUDIT_DIR,
   WORKSPACE_FILES, TRANSLATION_TOOLKIT_FILES,
+  SKILL_DIR, SKILL_FILES,
 } from './constants';
 
 let outputChannel: vscode.OutputChannel;
@@ -218,6 +219,21 @@ async function runSetup(
       for (const fileName of WORKSPACE_FILES) {
         const src = path.join(bundledDir, fileName);
         const dest = path.join(workspaceRoot, fileName);
+        if (fs.existsSync(src)) {
+          copyFileIfNewer(src, dest, manual);
+        }
+      }
+
+      // Step 5b: Copy fabric-toolkit skill to .claude/skills/
+      progress.report({ message: 'Installing fabric-toolkit skill...' });
+      const skillSrcDir = path.join(bundledDir, SKILL_DIR);
+      const skillDestDir = path.join(workspaceRoot, '.claude', SKILL_DIR);
+      if (!fs.existsSync(skillDestDir)) {
+        fs.mkdirSync(skillDestDir, { recursive: true });
+      }
+      for (const fileName of SKILL_FILES) {
+        const src = path.join(skillSrcDir, fileName);
+        const dest = path.join(skillDestDir, fileName);
         if (fs.existsSync(src)) {
           copyFileIfNewer(src, dest, manual);
         }
