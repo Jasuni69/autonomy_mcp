@@ -377,7 +377,7 @@ When you find translatable content that requires repetitive manual edits across 
 
 ### 18. Raw API (Escape Hatch)
 
-`raw_api_call(endpoint, method="GET", audience="fabric", body?)` — Call any Microsoft API directly. Audiences: "fabric", "powerbi", "graph", "storage", "azure". Handles authentication automatically. Use when no dedicated tool exists.
+`raw_api_call(endpoint, method="GET", audience="fabric", body?, lro=False)` — Call any Microsoft API directly. Audiences: "fabric", "powerbi", "graph", "storage", "azure". Uses same retry and error handling as all tools. Set lro=True for long-running operations (202 + polling). Use when no dedicated tool exists.
 
 ### 19. Environments
 

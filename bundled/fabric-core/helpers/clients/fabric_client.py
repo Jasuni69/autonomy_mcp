@@ -66,6 +66,7 @@ class FabricApiClient:
         lro_timeout: int = 300,  # max seconds to wait
         token_scope: Optional[str] = None,
         max_retries: int = 3,
+        raw_mode: bool = False,
     ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
         """
         Make an asynchronous call to the Fabric API.
@@ -101,7 +102,7 @@ class FabricApiClient:
                         )
                     else:
                         query_params = params.copy()
-                        if "maxResults" not in query_params:
+                        if not raw_mode and "maxResults" not in query_params:
                             query_params["maxResults"] = self.config.max_results
                         response = requests.request(
                             method=method.upper(),
@@ -275,7 +276,7 @@ class FabricApiClient:
                             timeout=120,
                         )
                     else:
-                        if "maxResults" not in request_params:
+                        if not raw_mode and "maxResults" not in request_params:
                             request_params["maxResults"] = self.config.max_results
                         response = requests.request(
                             method=method.upper(),
