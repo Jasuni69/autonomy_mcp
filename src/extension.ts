@@ -11,7 +11,7 @@ import {
   SETUP_FLAG, SETUP_VERSION, CURRENT_VERSION,
   GLOBAL_MCP_DIR, FABRIC_CORE_DIR, TRANSLATION_AUDIT_DIR,
   WORKSPACE_FILES, TRANSLATION_TOOLKIT_FILES,
-  SKILL_DIR, SKILL_FILES,
+  SKILL_DIR, SKILL_FILES, AGENT_FILES,
 } from './constants';
 
 let outputChannel: vscode.OutputChannel;
@@ -234,6 +234,21 @@ async function runSetup(
       for (const fileName of SKILL_FILES) {
         const src = path.join(skillSrcDir, fileName);
         const dest = path.join(skillDestDir, fileName);
+        if (fs.existsSync(src)) {
+          copyFileIfNewer(src, dest, manual);
+        }
+      }
+
+      // Step 5c: Copy custom agents to .claude/agents/
+      progress.report({ message: 'Installing custom agents...' });
+      const agentsSrcDir = path.join(bundledDir, 'agents');
+      const agentsDestDir = path.join(workspaceRoot, '.claude', 'agents');
+      if (!fs.existsSync(agentsDestDir)) {
+        fs.mkdirSync(agentsDestDir, { recursive: true });
+      }
+      for (const fileName of AGENT_FILES) {
+        const src = path.join(agentsSrcDir, fileName);
+        const dest = path.join(agentsDestDir, fileName);
         if (fs.existsSync(src)) {
           copyFileIfNewer(src, dest, manual);
         }

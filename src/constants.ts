@@ -3,7 +3,7 @@ import * as path from 'path';
 
 export const SETUP_FLAG = 'fabricPowerbi.setupComplete';
 export const SETUP_VERSION = 'fabricPowerbi.setupVersion';
-export const CURRENT_VERSION = '1.8.0';
+export const CURRENT_VERSION = '1.8.1';
 
 /** Global install directory for MCP servers */
 export const GLOBAL_MCP_DIR = path.join(os.homedir(), '.fabric-mcp');
@@ -19,6 +19,15 @@ export const MCP_SERVER_KEYS = {
 /** Files copied to workspace root */
 export const WORKSPACE_FILES = [
   'CLAUDE.md',
+];
+
+/** Agent files copied to .claude/agents/ */
+export const AGENT_FILES = [
+  'data-engineer.md',
+  'dax-analyst.md',
+  'translator.md',
+  'sql-analyst.md',
+  'cicd-engineer.md',
 ];
 
 /** Skill directory copied to .claude/skills/ */
