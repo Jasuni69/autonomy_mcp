@@ -70,6 +70,18 @@ This server talks to a **running Power BI Desktop instance** — the report must
 
 ---
 
+## Agent Routing
+
+Before starting a task, read the matching agent file for domain-specific expertise:
+
+- **Lakehouses, ETL, delta tables, data loading, notebooks** → read `.claude/agents/data-engineer.md`
+- **DAX measures, semantic models, model optimization** → read `.claude/agents/dax-analyst.md`
+- **Translating Power BI reports** → read `.claude/agents/translator.md`
+- **SQL queries, data questions, analytics** → read `.claude/agents/sql-analyst.md`
+- **Git integration, deployment pipelines, CI/CD** → read `.claude/agents/cicd-engineer.md`
+
+---
+
 ## Known Limitations
 
 | Tool | Issue |
