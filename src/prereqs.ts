@@ -20,6 +20,35 @@ function runCmd(cmd: string, timeoutMs = 15000): string | null {
   }
 }
 
+/** Common install paths for tools that may not be on PATH yet (fresh install, no shell restart). */
+const FALLBACK_PATHS: Record<string, string[]> = process.platform === 'win32'
+  ? {
+    uv: [
+      path.join(process.env.USERPROFILE || '', '.local', 'bin', 'uv.exe'),
+      path.join(process.env.USERPROFILE || '', '.cargo', 'bin', 'uv.exe'),
+    ],
+    az: [
+      'C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin\\az.cmd',
+      'C:\\Program Files (x86)\\Microsoft SDKs\\Azure\\CLI2\\wbin\\az.cmd',
+    ],
+  }
+  : {
+    uv: [
+      path.join(process.env.HOME || '', '.local', 'bin', 'uv'),
+      path.join(process.env.HOME || '', '.cargo', 'bin', 'uv'),
+    ],
+    az: ['/usr/local/bin/az', '/usr/bin/az'],
+  };
+
+/** Try to find a tool by checking fallback paths when it's not on PATH. */
+function findFallback(tool: string): string | null {
+  const candidates = FALLBACK_PATHS[tool] || [];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) { return p; }
+  }
+  return null;
+}
+
 export function checkPython(): PrereqResult {
   const candidates = process.platform === 'win32'
     ? ['python.exe', 'python3.exe', 'py.exe']
@@ -46,6 +75,14 @@ export function checkUv(): PrereqResult {
   if (out) {
     return { ok: true, message: `uv found: ${out}` };
   }
+  // PATH may not include uv yet (fresh install, no shell restart)
+  const fallback = findFallback('uv');
+  if (fallback) {
+    const fbOut = runCmd(`"${fallback}" --version`);
+    if (fbOut) {
+      return { ok: true, message: `uv found (fallback): ${fbOut}` };
+    }
+  }
   return { ok: false, message: 'uv not found. Install: https://docs.astral.sh/uv/getting-started/installation/' };
 }
 
@@ -57,11 +94,21 @@ export function findUvPath(): string {
     const out = runCmd('which uv');
     if (out) { return out; }
   }
+  // Fallback: check common install paths
+  const fallback = findFallback('uv');
+  if (fallback) { return fallback; }
   return 'uv';
 }
 
 export function checkAzureCli(): PrereqResult {
-  const out = runCmd('az version --output json');
+  let out = runCmd('az version --output json');
+  // PATH may not include az yet (fresh install, no shell restart)
+  if (!out) {
+    const fallback = findFallback('az');
+    if (fallback) {
+      out = runCmd(`"${fallback}" version --output json`);
+    }
+  }
   if (out) {
     try {
       const data = JSON.parse(out);
@@ -75,7 +122,12 @@ export function checkAzureCli(): PrereqResult {
 }
 
 export function checkAzureAuth(): PrereqResult {
-  const out = runCmd('az account get-access-token --resource https://api.fabric.microsoft.com/ --output json', 20000);
+  let azCmd = 'az';
+  if (!runCmd('az --version')) {
+    const fallback = findFallback('az');
+    if (fallback) { azCmd = `"${fallback}"`; }
+  }
+  const out = runCmd(`${azCmd} account get-access-token --resource https://api.fabric.microsoft.com/ --output json`, 20000);
   if (out) {
     return { ok: true, message: 'Azure authentication active' };
   }

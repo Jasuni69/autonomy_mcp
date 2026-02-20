@@ -172,19 +172,25 @@ async function runSetup(
         }
       }
 
-      // Step 2: Install fabric-core globally
+      // Step 2: Install fabric-core globally (always attempt — let uv sync fail with real error)
       let fabricCoreOk = false;
-      if (pythonResult.ok && uvResult.ok) {
-        progress.report({ message: 'Installing fabric-core MCP server...' });
-        const fabricSrc = path.join(bundledDir, 'fabric-core');
-        if (fs.existsSync(fabricSrc)) {
-          const result = await installFabricCore(fabricSrc, FABRIC_CORE_DIR, outputChannel);
-          fabricCoreOk = result.ok;
-          results.push(result.message);
-          outputChannel.appendLine(result.message);
+      progress.report({ message: 'Installing fabric-core MCP server...' });
+      const fabricSrc = path.join(bundledDir, 'fabric-core');
+      if (fs.existsSync(fabricSrc)) {
+        const result = await installFabricCore(fabricSrc, FABRIC_CORE_DIR, outputChannel);
+        fabricCoreOk = result.ok;
+        results.push(result.message);
+        outputChannel.appendLine(result.message);
+        if (!result.ok && manual) {
+          vscode.window.showWarningMessage(
+            `fabric-core install failed: ${result.message}`,
+            'Show Details'
+          ).then(action => {
+            if (action === 'Show Details') {
+              outputChannel.show();
+            }
+          });
         }
-      } else {
-        results.push('Skipped fabric-core (missing Python 3.12+ or uv)');
       }
 
       // Step 3: Install translation audit server
