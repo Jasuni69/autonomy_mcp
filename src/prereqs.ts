@@ -134,6 +134,42 @@ export function checkAzureAuth(): PrereqResult {
   return { ok: false, message: 'Not logged in. Run: az login' };
 }
 
+export function checkDotnet(): PrereqResult {
+  const out = runCmd('dotnet --list-runtimes');
+  if (out) {
+    // Look for .NET 9.x runtime (needed for Power BI Modeling MCP)
+    const hasNet9 = out.split('\n').some(line =>
+      /Microsoft\.NETCore\.App 9\.\d+/.test(line) ||
+      /Microsoft\.AspNetCore\.App 9\.\d+/.test(line)
+    );
+    if (hasNet9) {
+      return { ok: true, message: '.NET 9.x runtime found' };
+    }
+    // Check if any .NET is installed but wrong version
+    const versions = out.match(/Microsoft\.NETCore\.App (\d+\.\d+)/g);
+    if (versions) {
+      return { ok: false, message: `.NET found but need 9.x for Power BI Modeling MCP (have: ${versions.join(', ')})` };
+    }
+  }
+  // Fallback: check common install paths
+  const dotnetPaths = process.platform === 'win32'
+    ? ['C:\\Program Files\\dotnet\\dotnet.exe']
+    : ['/usr/local/share/dotnet/dotnet', '/usr/share/dotnet/dotnet'];
+  for (const p of dotnetPaths) {
+    if (fs.existsSync(p)) {
+      const fbOut = runCmd(`"${p}" --list-runtimes`);
+      if (fbOut && /Microsoft\.NETCore\.App 9\.\d+/.test(fbOut)) {
+        return { ok: true, message: '.NET 9.x runtime found (fallback path)' };
+      }
+    }
+  }
+  return {
+    ok: false,
+    message: '.NET 9.x runtime not found (required for Power BI Modeling MCP)',
+    detail: 'https://dotnet.microsoft.com/en-us/download/dotnet/9.0',
+  };
+}
+
 export function checkOdbc(): PrereqResult {
   if (process.platform === 'win32') {
     // Check Windows registry for ODBC Driver 18

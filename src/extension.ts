@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { findPowerBIMcpExtension } from './utils';
 import {
-  checkPython, checkUv, checkAzureCli, checkAzureAuth, checkOdbc,
+  checkPython, checkUv, checkAzureCli, checkAzureAuth, checkOdbc, checkDotnet,
   installFabricCore, setupAuditVenv, copyDirRecursive, findUvPath,
 } from './prereqs';
 import { buildMcpConfig, writeMcpConfig, ensureClaudeSettings } from './mcpConfig';
@@ -172,6 +172,27 @@ async function runSetup(
         }
       }
 
+      // Step 1d: Check .NET 9.x runtime (needed for Power BI Modeling MCP)
+      const dotnetResult = checkDotnet();
+      if (!dotnetResult.ok) {
+        outputChannel.appendLine(`WARN: ${dotnetResult.message}`);
+        if (manual) {
+          vscode.window.showWarningMessage(
+            '.NET 9.x runtime not found. Required for Power BI Modeling MCP.',
+            'Install Now (winget)',
+            'Download Page'
+          ).then(action => {
+            if (action === 'Install Now (winget)') {
+              const terminal = vscode.window.createTerminal('.NET Install');
+              terminal.show();
+              terminal.sendText('winget install -e --id Microsoft.DotNet.Runtime.9');
+            } else if (action === 'Download Page') {
+              vscode.env.openExternal(vscode.Uri.parse('https://dotnet.microsoft.com/en-us/download/dotnet/9.0'));
+            }
+          });
+        }
+      }
+
       // Step 2: Install fabric-core globally (always attempt — let uv sync fail with real error)
       let fabricCoreOk = false;
       progress.report({ message: 'Installing fabric-core MCP server...' });
@@ -318,6 +339,7 @@ async function runPrereqCheck(): Promise<void> {
     { name: 'Azure CLI', result: checkAzureCli() },
     { name: 'Azure Auth', result: checkAzureAuth() },
     { name: 'ODBC Driver 18', result: checkOdbc() },
+    { name: '.NET 9.x Runtime', result: checkDotnet() },
     { name: 'Power BI Modeling MCP', result: { ok: !!findPowerBIMcpExtension(), message: findPowerBIMcpExtension() ? 'Found' : 'Not found' } },
   ];
 
