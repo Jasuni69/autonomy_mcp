@@ -2,7 +2,7 @@
   "name": "fabric-powerbi-toolkit",
   "displayName": "Fabric & Power BI Toolkit for Claude",
   "description": "Auto-configures MCP servers for Microsoft Fabric (138+ tools), Power BI Modeling, and Translation Audit. Generates CLAUDE.md knowledge base for Claude Code.",
-  "version": "1.8.9",
+  "version": "2.2.0",
   "publisher": "JasonNicolini",
   "icon": "icon.png",
   "license": "MIT",
@@ -40,6 +40,69 @@
       {
         "command": "fabricPowerbi.regenerateMcpJson",
         "title": "Fabric & Power BI: Regenerate .mcp.json"
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "fabricPowerbi.getStarted",
+        "title": "Get Started with Fabric & Power BI Toolkit",
+        "description": "Set up MCP servers for Microsoft Fabric and Power BI in Claude Code.",
+        "steps": [
+          {
+            "id": "prereqs",
+            "title": "Check Prerequisites",
+            "description": "Verify Python 3.12+, uv, Azure CLI, and .NET 9.x are installed.\n\n[Check Prerequisites](command:fabricPowerbi.checkPrereqs)",
+            "media": {
+              "altText": "Check prerequisites",
+              "image": "icon.png"
+            },
+            "completionEvents": [
+              "onCommand:fabricPowerbi.checkPrereqs"
+            ]
+          },
+          {
+            "id": "setup",
+            "title": "Run Full Setup",
+            "description": "Install MCP servers, copy knowledge base, and generate .mcp.json config.\n\n[Run Full Setup](command:fabricPowerbi.setupWorkspace)",
+            "media": {
+              "altText": "Run setup",
+              "image": "icon.png"
+            },
+            "completionEvents": [
+              "onCommand:fabricPowerbi.setupWorkspace"
+            ]
+          },
+          {
+            "id": "azureLogin",
+            "title": "Sign in to Azure",
+            "description": "MCP tools need Azure authentication to access Fabric resources. Open a terminal and run ``az login``.\n\n[Open Terminal](command:workbench.action.terminal.new)",
+            "media": {
+              "altText": "Azure login",
+              "image": "icon.png"
+            },
+            "completionEvents": [
+              "onCommand:workbench.action.terminal.new"
+            ]
+          },
+          {
+            "id": "restartClaude",
+            "title": "Restart Claude Code",
+            "description": "Close and reopen Claude Code so it picks up the new .mcp.json configuration. You should see 3 MCP servers load:\n- **fabric-core** — 138+ Fabric tools\n- **powerbi-modeling** — Live semantic model editing\n- **powerbi-translation-audit** — Translation validation",
+            "media": {
+              "altText": "Restart Claude Code",
+              "image": "icon.png"
+            }
+          },
+          {
+            "id": "tryIt",
+            "title": "Try It Out",
+            "description": "Open Claude Code and try these commands:\n- *\"List my Fabric workspaces\"*\n- *\"Show tables in my lakehouse\"*\n- *\"Create a DAX measure for total sales\"*\n\nSee [CLAUDE.md](command:markdown.showPreview) in your workspace for the full tool reference.",
+            "media": {
+              "altText": "Try it out",
+              "image": "icon.png"
+            }
+          }
+        ]
       }
     ]
   },

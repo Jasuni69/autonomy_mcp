@@ -1,0 +1,6 @@
+node_modules/
+out/
+dist/
+mcp/
+*.vsix
+.vscode-test/

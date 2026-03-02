@@ -4,13 +4,7 @@ node_modules/**
 **/*.map
 **/*.ts
 !out/**/*.js
-!fabric-setup-cli/dist/cli.js
-fabric-setup-cli/src/**
-fabric-setup-cli/node_modules/**
-fabric-setup-cli/out/**
-fabric-setup-cli/mcp/**
-fabric-setup-cli/.git/**
-fabric-setup-cli/package-lock.json
+!dist/cli.js
 tsconfig.json
 .gitignore
 **/__pycache__/**
