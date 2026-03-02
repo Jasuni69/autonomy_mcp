@@ -82,7 +82,7 @@ function launchSetupCli(context: vscode.ExtensionContext): void {
       '--workspace', workspaceFolder.uri.fsPath,
       '--extension-path', context.extensionPath,
     ],
-    env: { FORCE_COLOR: '1', ELECTRON_RUN_AS_NODE: '1' },
+    env: { ...process.env, FORCE_COLOR: '1', ELECTRON_RUN_AS_NODE: '1' },
   });
   terminal.show();
 }
