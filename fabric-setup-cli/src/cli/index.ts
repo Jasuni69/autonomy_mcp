@@ -19,6 +19,16 @@ import {
   listAzureTenants, getActiveTenant, loginToTenant,
 } from '../prereqs';
 
+// Read version from root package.json so banner stays in sync
+const ROOT_VERSION: string = (() => {
+  try {
+    const pkg = require('../../../package.json');
+    return pkg.version || '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+})();
+
 // Box inner width = 62. Each line padded to exactly 62 visible chars.
 const W = 62;
 const pad = (s: string, len: number) => s + ' '.repeat(Math.max(0, W - len));
@@ -57,7 +67,7 @@ function buildBannerLines(): string[] {
   }
 
   // Version line below banner
-  lines.push(pc.dim('  v2.4.1  Fabric + Power BI + Claude Code'));
+  lines.push(pc.dim(`  v${ROOT_VERSION}  Fabric + Power BI + Claude Code`));
 
   return lines;
 }
