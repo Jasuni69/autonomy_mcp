@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import * as cp from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
 import { findPowerBIMcpExtension } from './utils';
@@ -62,29 +61,15 @@ function launchSetupCli(context: vscode.ExtensionContext): void {
     return;
   }
 
-  // Find Node: prefer PATH, fall back to VS Code's bundled Node
-  let nodePath = 'node';
-  try {
-    cp.execSync('node --version', { stdio: 'pipe' });
-  } catch {
-    // Node not on PATH — try VS Code's bundled electron/node
-    const vsCodeNode = process.execPath; // VS Code's own Node
-    if (fs.existsSync(vsCodeNode)) {
-      nodePath = vsCodeNode;
-    }
-  }
-
-  const terminal = vscode.window.createTerminal({
-    name: 'Fabric & Power BI Setup',
-    shellPath: nodePath,
-    shellArgs: [
-      cliPath,
-      '--workspace', workspaceFolder.uri.fsPath,
-      '--extension-path', context.extensionPath,
-    ],
-    env: { ...process.env, FORCE_COLOR: '1', ELECTRON_RUN_AS_NODE: '1' },
-  });
+  const terminal = vscode.window.createTerminal({ name: 'Fabric & Power BI Setup' });
   terminal.show();
+
+  // Quote paths for shell safety
+  const ws = workspaceFolder.uri.fsPath.replace(/\\/g, '/');
+  const ext = context.extensionPath.replace(/\\/g, '/');
+  const cli = cliPath.replace(/\\/g, '/');
+  // Clear screen first so the raw command isn't visible, then run CLI
+  terminal.sendText(`clear 2>/dev/null; node "${cli}" --workspace "${ws}" --extension-path "${ext}"`);
 }
 
 async function runPrereqCheck(): Promise<void> {
