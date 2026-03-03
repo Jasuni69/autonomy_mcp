@@ -4,7 +4,7 @@ import * as p from '@clack/prompts';
 import pc from 'picocolors';
 import { createConsoleLogger } from './logger';
 import { promptServerSelection, promptCompanyConfig, promptConfigScope } from './prompts';
-import { runCompanySync, syncCompanyFiles } from './company';
+import { runCompanySync, syncCompanyFiles, syncLocalFiles } from './company';
 import type { ConfigScope } from './types';
 import {
   resolvePaths, runPrereqChecks, installServers, copyKnowledgeBase, writeConfig,
@@ -175,6 +175,9 @@ async function runFullSetup(ctx: CliContext, auto: boolean): Promise<void> {
   if (companyConfig?.mode === 'repo' && companyConfig.repoUrl && companyConfig.companyName) {
     p.log.step('Syncing company config...');
     await syncCompanyFiles(companyConfig.repoUrl, companyConfig.companyName, ctx.paths);
+  } else if (companyConfig?.mode === 'local') {
+    p.log.step('Syncing local config...');
+    syncLocalFiles(ctx.paths);
   }
 
   // Write config

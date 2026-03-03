@@ -8,35 +8,63 @@ import type { InstallPaths } from './types';
 import { formatElapsed } from './animations';
 
 export interface CompanyConfig {
-  mode: 'bundled' | 'repo';
+  mode: 'bundled' | 'repo' | 'local';
   repoUrl?: string;
   companyName?: string;
+  localPath?: string;
 }
 
-const COMPANY_REPO_URL = 'https://github.com/Jason-nicolini/fabric-configs.git';
+const CONFIG_FILE = path.join(os.homedir(), '.fabric-mcp-cli.json');
+
+interface SavedConfig {
+  repoUrl?: string;
+  claudeMdPath?: string;
+  agentsDir?: string;
+  skillsDir?: string;
+}
+
+function loadSavedConfig(): SavedConfig {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+    }
+  } catch {}
+  return {};
+}
+
+function saveConfig(config: Partial<SavedConfig>): void {
+  const existing = loadSavedConfig();
+  const merged = { ...existing, ...config };
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify(merged, null, 2) + '\n', 'utf-8');
+}
 
 /**
  * Prompt for company config during Full Setup.
- * Returns config but doesn't sync files (that happens in syncCompanyFiles).
  */
 export async function promptCompanyConfig(): Promise<CompanyConfig> {
-  const mode = await p.select({
-    message: 'Knowledge base configuration',
-    options: [
-      { value: 'bundled', label: 'Use bundled defaults', hint: 'ships with extension' },
-      { value: 'repo', label: 'Sync from company repo', hint: 'picks company config' },
-    ],
-  });
+  const saved = loadSavedConfig();
+
+  const options: { value: string; label: string; hint: string }[] = [
+    { value: 'bundled', label: 'Use bundled defaults', hint: 'ships with extension' },
+    { value: 'repo', label: 'Sync from git repo', hint: saved.repoUrl ? `last: ${shortenUrl(saved.repoUrl)}` : 'paste repo URL' },
+    { value: 'local', label: 'Use local files', hint: 'pick CLAUDE.md, agents/, skills/ separately' },
+  ];
+
+  const mode = await p.select({ message: 'Knowledge base source', options });
 
   if (p.isCancel(mode)) {
     p.cancel('Setup cancelled.');
     process.exit(0);
   }
 
-  if (mode === 'bundled') {
-    return { mode: 'bundled' };
+  if (mode === 'bundled') return { mode: 'bundled' };
+
+  if (mode === 'local') {
+    const result = await pickLocalFiles();
+    return result ?? { mode: 'bundled' };
   }
 
+  // repo mode
   const result = await cloneAndPickCompany();
   return result ?? { mode: 'bundled' };
 }
@@ -45,23 +73,52 @@ export async function promptCompanyConfig(): Promise<CompanyConfig> {
  * Standalone company sync — used from main menu.
  */
 export async function runCompanySync(paths: InstallPaths): Promise<void> {
-  const result = await cloneAndPickCompany();
-  if (!result || result.mode === 'bundled') return;
+  const saved = loadSavedConfig();
 
+  const options: { value: string; label: string; hint: string }[] = [
+    { value: 'repo', label: 'Sync from git repo', hint: saved.repoUrl ? `last: ${shortenUrl(saved.repoUrl)}` : 'paste repo URL' },
+    { value: 'local', label: 'Use local files', hint: 'pick CLAUDE.md, agents/, skills/ separately' },
+  ];
+
+  const mode = await p.select({ message: 'Knowledge base source', options });
+  if (p.isCancel(mode)) return;
+
+  if (mode === 'local') {
+    const result = await pickLocalFiles();
+    if (!result || result.mode !== 'local') return;
+    syncLocalFiles(paths);
+    return;
+  }
+
+  const result = await cloneAndPickCompany();
+  if (!result || result.mode !== 'repo') return;
   await syncCompanyFiles(result.repoUrl!, result.companyName!, paths);
 }
 
-/**
- * Clone hardcoded repo → list companies → user picks.
- */
+// ─── Git Repo Flow ───
+
 async function cloneAndPickCompany(): Promise<CompanyConfig | null> {
+  const saved = loadSavedConfig();
+
+  const repoUrl = await p.text({
+    message: 'Git repo URL',
+    placeholder: 'https://github.com/org/fabric-configs',
+    defaultValue: saved.repoUrl,
+    validate: (val) => {
+      if (!val.trim()) return 'URL required';
+      return undefined;
+    },
+  });
+
+  if (p.isCancel(repoUrl)) return null;
+
   const t0 = Date.now();
   const s = p.spinner();
   s.start('Fetching company list...');
 
   const tmpDir = path.join(os.tmpdir(), 'fabric-company-configs-' + Date.now());
   try {
-    cp.execSync(`git clone --depth 1 "${COMPANY_REPO_URL}" "${tmpDir}"`, {
+    cp.execSync(`git clone --depth 1 "${repoUrl}" "${tmpDir}"`, {
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 30000,
     });
@@ -93,7 +150,6 @@ async function cloneAndPickCompany(): Promise<CompanyConfig | null> {
 
   s.stop(pc.green(`Found ${companies.length} company config(s)`) + formatElapsed(Date.now() - t0));
 
-  // Let user pick
   const companyName = await p.select({
     message: 'Select company',
     options: companies.map(name => ({
@@ -108,12 +164,12 @@ async function cloneAndPickCompany(): Promise<CompanyConfig | null> {
     return null;
   }
 
-  // Stash tmpDir path so syncCompanyFiles can reuse it
+  saveConfig({ repoUrl: repoUrl as string });
   (globalThis as any).__companyTmpDir = tmpDir;
 
   return {
     mode: 'repo',
-    repoUrl: COMPANY_REPO_URL,
+    repoUrl: repoUrl as string,
     companyName: companyName as string,
   };
 }
@@ -157,14 +213,14 @@ export async function syncCompanyFiles(
     return;
   }
 
-  // Mirror CLAUDE.md if it exists
+  // CLAUDE.md
   const srcClaudeMd = path.join(companyDir, 'CLAUDE.md');
   if (fs.existsSync(srcClaudeMd)) {
     copyFileSafe(srcClaudeMd, path.join(paths.kbDir, 'CLAUDE.md'));
     p.log.message(`${pc.green('✓')} CLAUDE.md updated`);
   }
 
-  // Mirror agents/ — full replace
+  // agents/
   const srcAgents = path.join(companyDir, 'agents');
   const destAgents = path.join(paths.claudeDir, 'agents');
   if (fs.existsSync(srcAgents)) {
@@ -173,7 +229,7 @@ export async function syncCompanyFiles(
     p.log.message(`${pc.green('✓')} agents/ synced (${count} files)`);
   }
 
-  // Mirror skills/ — full replace
+  // skills/
   const srcSkills = path.join(companyDir, 'skills');
   const destSkills = path.join(paths.claudeDir, 'skills');
   if (fs.existsSync(srcSkills)) {
@@ -182,7 +238,7 @@ export async function syncCompanyFiles(
     p.log.message(`${pc.green('✓')} skills/ synced (${count} files)`);
   }
 
-  // Any other .md files at company root
+  // Other root files
   const rootFiles = fs.readdirSync(companyDir)
     .filter(f => f !== 'CLAUDE.md' && !fs.statSync(path.join(companyDir, f)).isDirectory());
   for (const file of rootFiles) {
@@ -192,13 +248,122 @@ export async function syncCompanyFiles(
 
   p.log.success(`Company "${companyName}" config synced`);
 
-  if (needsCleanup) {
-    cleanupTmp(tmpDir);
-  }
+  if (needsCleanup) cleanupTmp(tmpDir);
   delete (globalThis as any).__companyTmpDir;
 }
 
-// --- helpers ---
+// ─── Local File Picker Flow ───
+
+interface LocalPicks {
+  claudeMdPath?: string;
+  agentsDir?: string;
+  skillsDir?: string;
+}
+
+async function pickLocalFiles(): Promise<CompanyConfig | null> {
+  const saved = loadSavedConfig();
+
+  p.log.info(pc.dim('Pick files individually. Press Enter to skip any.'));
+
+  // CLAUDE.md
+  const claudeMd = await p.text({
+    message: 'Path to CLAUDE.md',
+    placeholder: '/path/to/CLAUDE.md (Enter to skip)',
+    defaultValue: saved.claudeMdPath || '',
+    validate: (val) => {
+      if (!val.trim()) return undefined; // skip is ok
+      const resolved = path.resolve(val.trim());
+      if (!fs.existsSync(resolved)) return `File not found: ${resolved}`;
+      if (fs.statSync(resolved).isDirectory()) return 'Expected a file, not a directory';
+      return undefined;
+    },
+  });
+  if (p.isCancel(claudeMd)) return null;
+
+  // agents/
+  const agentsDir = await p.text({
+    message: 'Path to agents/ folder',
+    placeholder: '/path/to/agents (Enter to skip)',
+    defaultValue: saved.agentsDir || '',
+    validate: (val) => {
+      if (!val.trim()) return undefined;
+      const resolved = path.resolve(val.trim());
+      if (!fs.existsSync(resolved)) return `Folder not found: ${resolved}`;
+      if (!fs.statSync(resolved).isDirectory()) return 'Expected a directory';
+      return undefined;
+    },
+  });
+  if (p.isCancel(agentsDir)) return null;
+
+  // skills/
+  const skillsDir = await p.text({
+    message: 'Path to skills/ folder',
+    placeholder: '/path/to/skills (Enter to skip)',
+    defaultValue: saved.skillsDir || '',
+    validate: (val) => {
+      if (!val.trim()) return undefined;
+      const resolved = path.resolve(val.trim());
+      if (!fs.existsSync(resolved)) return `Folder not found: ${resolved}`;
+      if (!fs.statSync(resolved).isDirectory()) return 'Expected a directory';
+      return undefined;
+    },
+  });
+  if (p.isCancel(skillsDir)) return null;
+
+  const picks: LocalPicks = {};
+  if ((claudeMd as string).trim()) picks.claudeMdPath = path.resolve((claudeMd as string).trim());
+  if ((agentsDir as string).trim()) picks.agentsDir = path.resolve((agentsDir as string).trim());
+  if ((skillsDir as string).trim()) picks.skillsDir = path.resolve((skillsDir as string).trim());
+
+  if (!picks.claudeMdPath && !picks.agentsDir && !picks.skillsDir) {
+    p.log.warn('Nothing selected.');
+    return null;
+  }
+
+  // Save paths for next time
+  saveConfig({
+    claudeMdPath: picks.claudeMdPath,
+    agentsDir: picks.agentsDir,
+    skillsDir: picks.skillsDir,
+  });
+
+  // Stash picks so syncLocalFiles can use them
+  (globalThis as any).__localPicks = picks;
+
+  return { mode: 'local' };
+}
+
+/**
+ * Sync individually picked local files into mcp/ paths.
+ */
+export function syncLocalFiles(paths: InstallPaths): void {
+  const picks: LocalPicks | undefined = (globalThis as any).__localPicks;
+  if (!picks) return;
+
+  if (picks.claudeMdPath && fs.existsSync(picks.claudeMdPath)) {
+    copyFileSafe(picks.claudeMdPath, path.join(paths.kbDir, 'CLAUDE.md'));
+    p.log.message(`${pc.green('✓')} CLAUDE.md ← ${pc.dim(picks.claudeMdPath)}`);
+  }
+
+  if (picks.agentsDir && fs.existsSync(picks.agentsDir)) {
+    const destAgents = path.join(paths.claudeDir, 'agents');
+    mirrorDir(picks.agentsDir, destAgents);
+    const count = fs.readdirSync(destAgents).filter(f => f.endsWith('.md')).length;
+    p.log.message(`${pc.green('✓')} agents/ synced (${count} files) ← ${pc.dim(picks.agentsDir)}`);
+  }
+
+  if (picks.skillsDir && fs.existsSync(picks.skillsDir)) {
+    const destSkills = path.join(paths.claudeDir, 'skills');
+    mirrorDir(picks.skillsDir, destSkills);
+    const count = countFiles(destSkills);
+    p.log.message(`${pc.green('✓')} skills/ synced (${count} files) ← ${pc.dim(picks.skillsDir)}`);
+  }
+
+  p.log.success('Local config synced');
+  delete (globalThis as any).__localPicks;
+}
+
+// ─── Helpers ───
 
 function describeCompanyFolder(dir: string): string {
   const items: string[] = [];
@@ -211,6 +376,16 @@ function describeCompanyFolder(dir: string): string {
     items.push('skills');
   }
   return items.join(', ') || 'empty';
+}
+
+function shortenUrl(url: string): string {
+  return url.replace(/^https?:\/\//, '').replace(/\.git$/, '');
+}
+
+function shortenPath(p: string): string {
+  const home = os.homedir();
+  if (p.startsWith(home)) return '~' + p.slice(home.length);
+  return p;
 }
 
 function mirrorDir(srcDir: string, destDir: string): void {
