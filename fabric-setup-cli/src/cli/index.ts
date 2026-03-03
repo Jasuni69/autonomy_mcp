@@ -303,10 +303,14 @@ async function mainMenu(ctx: CliContext, auto: boolean): Promise<void> {
       ],
     });
 
-    if (p.isCancel(action) || action === 'exit') {
+    // Only exit on explicit 'exit' selection.
+    // Don't exit on isCancel — VS Code terminal arrow keys can
+    // send ESC sequences that clack misreads as cancel.
+    if (action === 'exit') {
       p.outro(pc.dim('See ya.'));
       return;
     }
+    if (p.isCancel(action)) continue;
 
     switch (action) {
       case 'setup':
