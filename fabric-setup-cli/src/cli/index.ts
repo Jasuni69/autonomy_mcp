@@ -11,25 +11,56 @@ import {
   runSmokeTests, printInstallSummary,
 } from './tasks';
 import type { CliContext } from './tasks';
+import {
+  printBannerAnimated, printBannerInstant, gradientColor,
+  microSpinner, phaseDivider, stepLabel, renderSuccessBox,
+} from './animations';
+import {
+  listAzureTenants, getActiveTenant, loginToTenant,
+} from '../prereqs';
 
 // Box inner width = 62. Each line padded to exactly 62 visible chars.
 const W = 62;
 const pad = (s: string, len: number) => s + ' '.repeat(Math.max(0, W - len));
 
-const BANNER = [
-  pc.cyan('╔' + '═'.repeat(W) + '╗'),
-  pc.cyan('║') + ' '.repeat(W) + pc.cyan('║'),
-  pc.cyan('║') + pad('   ███████╗ █████╗ ██████╗ ██████╗ ██╗ ██████╗', 46) + pc.cyan('║'),
-  pc.cyan('║') + pad('   ██╔════╝██╔══██╗██╔══██╗██╔══██╗██║██╔════╝', 46) + pc.cyan('║'),
-  pc.cyan('║') + pad('   █████╗  ███████║██████╔╝██████╔╝██║██║     ', 46) + pc.cyan('║'),
-  pc.cyan('║') + pad('   ██╔══╝  ██╔══██║██╔══██╗██╔══██╗██║██║     ', 46) + pc.cyan('║'),
-  pc.cyan('║') + pad('   ██║     ██║  ██║██████╔╝██║  ██║██║╚██████╗', 46) + pc.cyan('║'),
-  pc.cyan('║') + pad('   ╚═╝     ╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝ ╚═════╝', 46) + pc.cyan('║'),
-  pc.cyan('║') + ' '.repeat(W) + pc.cyan('║'),
-  pc.cyan('║') + '   ' + pc.bold(pc.magenta('& Power BI Toolkit')) + '       ' + pc.dim('MCP Server Manager') + ' '.repeat(16) + pc.cyan('║'),
-  pc.cyan('║') + ' '.repeat(W) + pc.cyan('║'),
-  pc.cyan('╚' + '═'.repeat(W) + '╝'),
-].join('\n');
+const TOTAL_LINES = 12;
+
+function buildBannerLines(): string[] {
+  const lines: string[] = [];
+  const raw = [
+    // line 0: top border
+    () => { const c = gradientColor(0, TOTAL_LINES); return c('╔' + '═'.repeat(W) + '╗'); },
+    // line 1: blank
+    () => { const c = gradientColor(1, TOTAL_LINES); return c('║') + ' '.repeat(W) + c('║'); },
+    // line 2-7: ASCII art
+    () => { const c = gradientColor(2, TOTAL_LINES); return c('║') + pad('   ███████╗ █████╗ ██████╗ ██████╗ ██╗ ██████╗', 46) + c('║'); },
+    () => { const c = gradientColor(3, TOTAL_LINES); return c('║') + pad('   ██╔════╝██╔══██╗██╔══██╗██╔══██╗██║██╔════╝', 46) + c('║'); },
+    () => { const c = gradientColor(4, TOTAL_LINES); return c('║') + pad('   █████╗  ███████║██████╔╝██████╔╝██║██║     ', 46) + c('║'); },
+    () => { const c = gradientColor(5, TOTAL_LINES); return c('║') + pad('   ██╔══╝  ██╔══██║██╔══██╗██╔══██╗██║██║     ', 46) + c('║'); },
+    () => { const c = gradientColor(6, TOTAL_LINES); return c('║') + pad('   ██║     ██║  ██║██████╔╝██║  ██║██║╚██████╗', 46) + c('║'); },
+    () => { const c = gradientColor(7, TOTAL_LINES); return c('║') + pad('   ╚═╝     ╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝ ╚═════╝', 46) + c('║'); },
+    // line 8: blank
+    () => { const c = gradientColor(8, TOTAL_LINES); return c('║') + ' '.repeat(W) + c('║'); },
+    // line 9: subtitle
+    () => {
+      const c = gradientColor(9, TOTAL_LINES);
+      return c('║') + '   ' + pc.bold(pc.magenta('& Power BI Toolkit')) + '       ' + pc.dim('MCP Server Manager') + ' '.repeat(16) + c('║');
+    },
+    // line 10: blank
+    () => { const c = gradientColor(10, TOTAL_LINES); return c('║') + ' '.repeat(W) + c('║'); },
+    // line 11: bottom border
+    () => { const c = gradientColor(11, TOTAL_LINES); return c('╚' + '═'.repeat(W) + '╝'); },
+  ];
+
+  for (const fn of raw) {
+    lines.push(fn());
+  }
+
+  // Version line below banner
+  lines.push(pc.dim('  v2.3.0  Fabric + Power BI + Claude Code'));
+
+  return lines;
+}
 
 // Parse args
 function parseArgs(): { workspace: string; extensionPath: string; auto: boolean } {
@@ -55,11 +86,20 @@ function parseArgs(): { workspace: string; extensionPath: string; auto: boolean 
   return { workspace, extensionPath, auto };
 }
 
+const SETUP_STEPS = 6;
+
 async function runFullSetup(ctx: CliContext, auto: boolean): Promise<void> {
+  let step = 0;
+
+  // ──── Prerequisites ────
+  console.log('');
+  console.log(phaseDivider('Prerequisites'));
+
   // Server selection
+  step++;
   let servers;
   if (auto) {
-    p.log.info('Auto mode: selecting all servers');
+    p.log.info(`${stepLabel(step, SETUP_STEPS)} Auto mode: selecting all servers`);
     servers = { fabricCore: true, powerbiModeling: true, translationAudit: true };
   } else {
     servers = await promptServerSelection();
@@ -90,7 +130,8 @@ async function runFullSetup(ctx: CliContext, auto: boolean): Promise<void> {
   p.log.info(`Install target: ${scopeLabel}`);
 
   // Prereq checks
-  p.log.step('Checking prerequisites...');
+  step++;
+  p.log.step(`${stepLabel(step, SETUP_STEPS)} Checking prerequisites...`);
   const prereqsOk = runPrereqChecks();
   if (!prereqsOk && !auto) {
     const proceed = await p.confirm({
@@ -102,12 +143,21 @@ async function runFullSetup(ctx: CliContext, auto: boolean): Promise<void> {
     }
   }
 
-  // Install servers
-  p.log.step('Installing MCP servers...');
+  // ──── Installation ────
+  console.log('');
+  console.log(phaseDivider('Installation'));
+
+  step++;
+  p.log.step(`${stepLabel(step, SETUP_STEPS)} Installing MCP servers...`);
   const { fabricCoreOk, auditPythonPath, powerbiExePath } = await installServers(ctx);
 
+  // ──── Configuration ────
+  console.log('');
+  console.log(phaseDivider('Configuration'));
+
   // Copy knowledge base (bundled defaults first)
-  p.log.step('Copying knowledge base...');
+  step++;
+  p.log.step(`${stepLabel(step, SETUP_STEPS)} Copying knowledge base...`);
   copyKnowledgeBase(ctx);
   p.log.success('Knowledge base copied');
 
@@ -118,17 +168,103 @@ async function runFullSetup(ctx: CliContext, auto: boolean): Promise<void> {
   }
 
   // Write config
-  p.log.step(`Writing configuration...`);
+  step++;
+  p.log.step(`${stepLabel(step, SETUP_STEPS)} Writing configuration...`);
   const mcpConfig = writeConfig(ctx, fabricCoreOk, powerbiExePath, auditPythonPath);
   const serverCount = Object.keys(mcpConfig.mcpServers).length;
   p.log.success(`.mcp.json written with ${serverCount} server(s)`);
 
-  // Smoke tests
-  p.log.step('Validating servers...');
+  // ──── Validation ────
+  console.log('');
+  console.log(phaseDivider('Validation'));
+
+  step++;
+  p.log.step(`${stepLabel(step, SETUP_STEPS)} Validating servers...`);
   runSmokeTests(mcpConfig);
 
   // Summary
   printInstallSummary(ctx, mcpConfig);
+
+  // Completion celebration
+  console.log(renderSuccessBox(serverCount));
+}
+
+/** Azure Tenant Picker — list tenants, let user switch */
+async function runAzureTenantSwitch(): Promise<void> {
+  const s = p.spinner();
+  s.start('Fetching Azure tenants...');
+
+  const tenants = listAzureTenants();
+  const active = getActiveTenant();
+
+  if (tenants.length === 0) {
+    s.stop(pc.yellow('No Azure tenants found'));
+    p.log.warn('Not logged in or az CLI not found. Run: az login');
+    return;
+  }
+
+  s.stop(pc.green(`Found ${tenants.length} tenant(s)`));
+
+  if (active) {
+    const who = active.userEmail ? pc.cyan(active.userEmail) : pc.bold(active.displayName);
+    p.log.info(`Current: ${who} ${pc.dim(`(${active.tenantId.slice(0, 8)}...)`)}`);
+  }
+
+  const options = [
+    ...tenants.map(t => ({
+      value: t.tenantId,
+      label: t.userEmail || t.displayName,
+      hint: (t.isDefault ? '(active) ' : '') + t.tenantId.slice(0, 13) + '...',
+    })),
+    { value: '__new__', label: 'Login to new tenant', hint: 'opens browser' },
+  ];
+
+  const choice = await p.select({
+    message: 'Select Azure tenant',
+    options,
+  });
+
+  if (p.isCancel(choice)) return;
+
+  const tenantId = choice as string;
+
+  if (tenantId === '__new__') {
+    p.log.info('Opening browser for Azure login...');
+    const newTenantId = await p.text({
+      message: 'Tenant ID to login to',
+      placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+      validate: (val) => {
+        if (!val.trim()) return 'Tenant ID required';
+        return undefined;
+      },
+    });
+    if (p.isCancel(newTenantId)) return;
+
+    const loginSpinner = p.spinner();
+    loginSpinner.start('Logging in...');
+    const result = loginToTenant(newTenantId as string);
+    if (result.ok) {
+      loginSpinner.stop(pc.green(result.message));
+    } else {
+      loginSpinner.stop(pc.red(result.message));
+    }
+    return;
+  }
+
+  // Switch to selected tenant
+  if (active && tenantId === active.tenantId) {
+    p.log.info('Already on that tenant.');
+    return;
+  }
+
+  const loginSpinner = p.spinner();
+  loginSpinner.start('Switching tenant...');
+  const result = loginToTenant(tenantId);
+  if (result.ok) {
+    loginSpinner.stop(pc.green(result.message));
+  } else {
+    loginSpinner.stop(pc.red(result.message));
+  }
 }
 
 async function mainMenu(ctx: CliContext, auto: boolean): Promise<void> {
@@ -149,6 +285,7 @@ async function mainMenu(ctx: CliContext, auto: boolean): Promise<void> {
         { value: 'prereqs', label: 'Check Prerequisites', hint: 'Python, uv, Azure CLI, .NET...' },
         { value: 'smoke', label: 'Smoke Test Servers', hint: 'verify MCP servers can start' },
         { value: 'company', label: 'Company Config', hint: 'sync KB from company repo' },
+        { value: 'azure', label: 'Azure Login / Switch Tenant', hint: 'switch Fabric tenant' },
         { value: 'exit', label: 'Exit' },
       ],
     });
@@ -183,6 +320,10 @@ async function mainMenu(ctx: CliContext, auto: boolean): Promise<void> {
       case 'company':
         await runCompanySync(ctx.paths);
         break;
+
+      case 'azure':
+        await runAzureTenantSwitch();
+        break;
     }
   }
 }
@@ -208,7 +349,14 @@ async function main() {
   const { workspace, extensionPath, auto } = parseArgs();
   const logger = createConsoleLogger();
 
-  console.log(BANNER);
+  // Animated or instant banner
+  const bannerLines = buildBannerLines();
+  if (auto) {
+    printBannerInstant(bannerLines);
+  } else {
+    await printBannerAnimated(bannerLines);
+    await microSpinner('Initializing...', 600);
+  }
 
   const defaultServers = { fabricCore: true, powerbiModeling: true, translationAudit: true };
   const defaultPaths = resolvePaths(workspace, 'project');

@@ -364,6 +364,111 @@ function smokeTestProcess(name: string, cmd: string, args: string[]): SmokeTestR
   }
 }
 
+// --- Azure Tenant Management ---
+
+export interface AzureTenant {
+  tenantId: string;
+  displayName: string;
+  userEmail: string;
+  isDefault: boolean;
+}
+
+/** List unique Azure tenants from logged-in subscriptions */
+export function listAzureTenants(): AzureTenant[] {
+  let azCmd = 'az';
+  if (!runCmd('az --version')) {
+    const fallback = findFallback('az');
+    if (fallback) { azCmd = `"${fallback}"`; }
+  }
+
+  const out = runCmd(`${azCmd} account list --output json`, 20000);
+  if (!out) return [];
+
+  try {
+    const subs = JSON.parse(out) as Array<{
+      tenantId: string;
+      tenantDisplayName?: string;
+      name?: string;
+      isDefault: boolean;
+      user?: { name?: string; type?: string };
+    }>;
+
+    // Deduplicate by tenantId, grab email from user.name
+    const tenantMap = new Map<string, AzureTenant>();
+    for (const sub of subs) {
+      const email = sub.user?.name || '';
+      if (!tenantMap.has(sub.tenantId)) {
+        tenantMap.set(sub.tenantId, {
+          tenantId: sub.tenantId,
+          displayName: sub.tenantDisplayName || sub.name || sub.tenantId.slice(0, 8) + '...',
+          userEmail: email,
+          isDefault: sub.isDefault,
+        });
+      } else {
+        if (sub.isDefault) {
+          tenantMap.get(sub.tenantId)!.isDefault = true;
+        }
+        // Prefer a real email over empty
+        if (email && !tenantMap.get(sub.tenantId)!.userEmail) {
+          tenantMap.get(sub.tenantId)!.userEmail = email;
+        }
+      }
+    }
+
+    return Array.from(tenantMap.values());
+  } catch {
+    return [];
+  }
+}
+
+/** Get the currently active tenant */
+export function getActiveTenant(): { tenantId: string; displayName: string; userEmail: string } | null {
+  let azCmd = 'az';
+  if (!runCmd('az --version')) {
+    const fallback = findFallback('az');
+    if (fallback) { azCmd = `"${fallback}"`; }
+  }
+
+  const out = runCmd(`${azCmd} account show --output json`, 15000);
+  if (!out) return null;
+
+  try {
+    const data = JSON.parse(out);
+    return {
+      tenantId: data.tenantId,
+      displayName: data.tenantDisplayName || data.name || data.tenantId,
+      userEmail: data.user?.name || '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Login to a specific Azure tenant. Returns success/failure. */
+export function loginToTenant(tenantId: string): PrereqResult {
+  let azCmd = 'az';
+  if (!runCmd('az --version')) {
+    const fallback = findFallback('az');
+    if (fallback) { azCmd = `"${fallback}"`; }
+  }
+
+  try {
+    cp.execSync(`${azCmd} login --tenant ${tenantId}`, {
+      timeout: 120000,
+      stdio: ['inherit', 'pipe', 'pipe'],
+    });
+
+    // Verify Fabric token works
+    const token = runCmd(`${azCmd} account get-access-token --resource https://api.fabric.microsoft.com/ --output json`, 20000);
+    if (token) {
+      return { ok: true, message: 'Logged in and Fabric token verified' };
+    }
+    return { ok: true, message: 'Logged in (Fabric token not verified)' };
+  } catch (err: any) {
+    return { ok: false, message: `Login failed: ${err.message?.split('\n')[0]}` };
+  }
+}
+
 /** Recursively copy directory, skipping __pycache__ and .venv */
 export function copyDirRecursive(src: string, dest: string): void {
   if (!fs.existsSync(dest)) {

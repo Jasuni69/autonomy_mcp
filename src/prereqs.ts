@@ -293,6 +293,75 @@ function findSystemPython(): string | null {
   return null;
 }
 
+export interface SmokeTestResult {
+  server: string;
+  ok: boolean;
+  message: string;
+}
+
+/**
+ * Quick smoke test: verify each configured MCP server can start.
+ * Doesn't do a full handshake — just checks the process launches without immediate crash.
+ */
+export function smokeTestServers(mcpConfig: Record<string, any>): SmokeTestResult[] {
+  const results: SmokeTestResult[] = [];
+  const servers = mcpConfig.mcpServers || {};
+
+  for (const [name, config] of Object.entries(servers) as [string, any][]) {
+    const cmd = config.command;
+    const args: string[] = config.args || [];
+
+    // Basic check: command binary exists
+    if (!cmd) {
+      results.push({ server: name, ok: false, message: 'No command configured' });
+      continue;
+    }
+
+    // For file-based commands, check the binary/script exists
+    if (fs.existsSync(cmd)) {
+      // Good — file exists. Now try a quick launch test.
+      results.push(smokeTestProcess(name, cmd, args));
+    } else {
+      // Command might be on PATH (e.g., "uv") — try which/where
+      const whichCmd = process.platform === 'win32' ? 'where' : 'which';
+      const resolved = runCmd(`${whichCmd} ${cmd}`);
+      if (resolved) {
+        results.push(smokeTestProcess(name, cmd, args));
+      } else {
+        results.push({ server: name, ok: false, message: `Command not found: ${cmd}` });
+      }
+    }
+  }
+
+  return results;
+}
+
+function smokeTestProcess(name: string, cmd: string, args: string[]): SmokeTestResult {
+  try {
+    // Spawn process, give it 5s to start, then kill it.
+    // We're just checking it doesn't immediately crash with a bad exit code.
+    const proc = cp.spawnSync(`"${cmd}"`, args, {
+      timeout: 5000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      shell: true,
+      // Don't inherit env stdin — server will block waiting for JSON-RPC input,
+      // which is fine. We just want to see it doesn't crash on launch.
+    });
+
+    // Exit code null = process was still running (killed by timeout). That's good — it started.
+    // Exit code 0 = exited cleanly (some servers exit if no stdin). Also good.
+    // Exit code non-zero = crashed.
+    if (proc.status === null || proc.status === 0) {
+      return { server: name, ok: true, message: 'Server starts OK' };
+    }
+
+    const stderr = proc.stderr?.toString().trim().slice(0, 200) || '';
+    return { server: name, ok: false, message: `Exit code ${proc.status}${stderr ? ': ' + stderr : ''}` };
+  } catch (err: any) {
+    return { server: name, ok: false, message: `Launch failed: ${err.message}` };
+  }
+}
+
 /** Recursively copy directory, skipping __pycache__ and .venv */
 export function copyDirRecursive(src: string, dest: string): void {
   if (!fs.existsSync(dest)) {

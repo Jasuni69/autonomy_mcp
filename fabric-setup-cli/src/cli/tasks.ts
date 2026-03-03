@@ -10,6 +10,7 @@ import {
   smokeTestServers,
 } from '../prereqs';
 import { findPowerBIMcpExtension } from '../utils';
+import { formatElapsed } from './animations';
 import { buildMcpConfig, writeMcpConfig, ensureClaudeSettings } from '../mcpConfig';
 import type { ConfigScope } from './prompts';
 import {
@@ -45,12 +46,14 @@ export function runPrereqChecks(): boolean {
   ];
 
   let allOk = true;
+  const nameWidth = 20;
   for (const check of checks) {
     const icon = check.result.ok ? pc.green('✓') : pc.red('✗');
+    const paddedName = check.name.padEnd(nameWidth);
     const msg = check.result.ok ? check.result.message : pc.red(check.result.message);
-    p.log.message(`${icon} ${check.name}: ${msg}`);
+    p.log.message(`  ${icon} ${paddedName}${pc.dim('│')} ${msg}`);
     if (check.result.detail) {
-      p.log.message(pc.dim(`  ${check.result.detail}`));
+      p.log.message(`    ${' '.repeat(nameWidth)} ${pc.dim(check.result.detail)}`);
     }
     if (!check.result.ok) allOk = false;
   }
@@ -70,6 +73,7 @@ export async function installServers(ctx: CliContext): Promise<{
 
   // Fabric Core
   if (ctx.servers.fabricCore) {
+    const t0 = Date.now();
     const s = p.spinner();
     s.start('Installing fabric-core MCP server...');
     const bundledDir = path.join(ctx.extensionPath, 'bundled', 'fabric-core');
@@ -77,9 +81,9 @@ export async function installServers(ctx: CliContext): Promise<{
       const result = await installFabricCore(bundledDir, ctx.paths.fabricCoreDir, ctx.logger);
       fabricCoreOk = result.ok;
       if (result.ok) {
-        s.stop(pc.green('fabric-core installed'));
+        s.stop(pc.green('fabric-core installed') + formatElapsed(Date.now() - t0));
       } else {
-        s.stop(pc.red(`fabric-core failed: ${result.message}`));
+        s.stop(pc.red(`fabric-core failed: ${result.message}`) + formatElapsed(Date.now() - t0));
       }
     } else {
       s.stop(pc.yellow('fabric-core source not found in bundled/'));
@@ -88,6 +92,7 @@ export async function installServers(ctx: CliContext): Promise<{
 
   // Translation Audit
   if (ctx.servers.translationAudit) {
+    const t0 = Date.now();
     const s = p.spinner();
     s.start('Setting up translation audit server...');
     const auditSrc = path.join(ctx.extensionPath, 'bundled', 'translation-audit');
@@ -99,9 +104,9 @@ export async function installServers(ctx: CliContext): Promise<{
       const result = await setupAuditVenv(ctx.paths.translationAuditDir, ctx.logger);
       auditPythonPath = result.pythonPath;
       if (result.ok) {
-        s.stop(pc.green('translation audit server ready'));
+        s.stop(pc.green('translation audit server ready') + formatElapsed(Date.now() - t0));
       } else {
-        s.stop(pc.red(`audit setup failed: ${result.message}`));
+        s.stop(pc.red(`audit setup failed: ${result.message}`) + formatElapsed(Date.now() - t0));
       }
     } else {
       s.stop(pc.yellow('translation-audit source not found in bundled/'));
@@ -110,13 +115,14 @@ export async function installServers(ctx: CliContext): Promise<{
 
   // Power BI Modeling (always global — it's a VS Code extension)
   if (ctx.servers.powerbiModeling) {
+    const t0 = Date.now();
     const s = p.spinner();
     s.start('Detecting Power BI Modeling MCP...');
     powerbiExePath = findPowerBIMcpExtension();
     if (powerbiExePath) {
-      s.stop(pc.green('Power BI Modeling MCP found'));
+      s.stop(pc.green('Power BI Modeling MCP found') + formatElapsed(Date.now() - t0));
     } else {
-      s.stop(pc.yellow('Power BI Modeling MCP not found (install from VS Code Marketplace)'));
+      s.stop(pc.yellow('Power BI Modeling MCP not found (install from VS Code Marketplace)') + formatElapsed(Date.now() - t0));
     }
   }
 

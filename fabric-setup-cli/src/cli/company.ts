@@ -5,6 +5,7 @@ import * as os from 'os';
 import * as p from '@clack/prompts';
 import pc from 'picocolors';
 import type { InstallPaths } from './types';
+import { formatElapsed } from './animations';
 
 export interface CompanyConfig {
   mode: 'bundled' | 'repo';
@@ -86,6 +87,7 @@ async function promptRepoAndCompany(): Promise<CompanyConfig | null> {
   if (p.isCancel(repoUrl)) return null;
 
   // Clone and discover companies
+  const t0 = Date.now();
   const s = p.spinner();
   s.start('Fetching company list...');
 
@@ -96,7 +98,7 @@ async function promptRepoAndCompany(): Promise<CompanyConfig | null> {
       timeout: 30000,
     });
   } catch (err: any) {
-    s.stop(pc.red('Clone failed'));
+    s.stop(pc.red('Clone failed') + formatElapsed(Date.now() - t0));
     p.log.error(pc.red(`Could not clone repo: ${err.message?.split('\n')[0]}`));
     cleanupTmp(tmpDir);
     return null;
@@ -105,7 +107,7 @@ async function promptRepoAndCompany(): Promise<CompanyConfig | null> {
   // Scan for company folders
   const companiesDir = path.join(tmpDir, 'companies');
   if (!fs.existsSync(companiesDir)) {
-    s.stop(pc.red('No companies/ folder found in repo'));
+    s.stop(pc.red('No companies/ folder found in repo') + formatElapsed(Date.now() - t0));
     cleanupTmp(tmpDir);
     return null;
   }
@@ -116,12 +118,12 @@ async function promptRepoAndCompany(): Promise<CompanyConfig | null> {
     .sort();
 
   if (companies.length === 0) {
-    s.stop(pc.red('No company folders found in companies/'));
+    s.stop(pc.red('No company folders found in companies/') + formatElapsed(Date.now() - t0));
     cleanupTmp(tmpDir);
     return null;
   }
 
-  s.stop(pc.green(`Found ${companies.length} company config(s)`));
+  s.stop(pc.green(`Found ${companies.length} company config(s)`) + formatElapsed(Date.now() - t0));
 
   // Let user pick
   const companyName = await p.select({
@@ -165,6 +167,7 @@ export async function syncCompanyFiles(
   let needsCleanup = false;
 
   if (!tmpDir || !fs.existsSync(tmpDir)) {
+    const t0 = Date.now();
     const s = p.spinner();
     s.start('Pulling latest from repo...');
     tmpDir = path.join(os.tmpdir(), 'fabric-company-configs-' + Date.now());
@@ -173,10 +176,10 @@ export async function syncCompanyFiles(
         stdio: ['pipe', 'pipe', 'pipe'],
         timeout: 30000,
       });
-      s.stop(pc.green('Repo cloned'));
+      s.stop(pc.green('Repo cloned') + formatElapsed(Date.now() - t0));
       needsCleanup = true;
     } catch (err: any) {
-      s.stop(pc.red('Clone failed'));
+      s.stop(pc.red('Clone failed') + formatElapsed(Date.now() - t0));
       p.log.error(pc.red(err.message?.split('\n')[0]));
       return;
     }
