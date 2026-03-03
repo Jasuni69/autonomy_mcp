@@ -57,7 +57,7 @@ function buildBannerLines(): string[] {
   }
 
   // Version line below banner
-  lines.push(pc.dim('  v2.3.0  Fabric + Power BI + Claude Code'));
+  lines.push(pc.dim('  v2.4.0  Fabric + Power BI + Claude Code'));
 
   return lines;
 }

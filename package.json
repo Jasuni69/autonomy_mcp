@@ -2,7 +2,7 @@
   "name": "fabric-powerbi-toolkit",
   "displayName": "Fabric & Power BI Toolkit for Claude",
   "description": "Auto-configures MCP servers for Microsoft Fabric (138+ tools), Power BI Modeling, and Translation Audit. Generates CLAUDE.md knowledge base for Claude Code.",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "publisher": "JasonNicolini",
   "icon": "icon.png",
   "license": "MIT",
@@ -22,13 +22,19 @@
     "lakehouse"
   ],
   "activationEvents": [
-    "workspaceContains:**/*.pbip",
-    "workspaceContains:**/*.Dataset",
-    "workspaceContains:**/*.SemanticModel"
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
+      {
+        "command": "fabricPowerbi.quickMenu",
+        "title": "Fabric & Power BI Toolkit",
+        "icon": {
+          "light": "media/fabric-light.svg",
+          "dark": "media/fabric-dark.svg"
+        }
+      },
       {
         "command": "fabricPowerbi.setupWorkspace",
         "title": "Fabric & Power BI: Full Setup"
@@ -42,6 +48,14 @@
         "title": "Fabric & Power BI: Regenerate .mcp.json"
       }
     ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "fabricPowerbi.quickMenu",
+          "group": "navigation"
+        }
+      ]
+    },
     "walkthroughs": [
       {
         "id": "fabricPowerbi.getStarted",
