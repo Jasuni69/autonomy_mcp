@@ -71,16 +71,32 @@ export function writeMcpConfig(workspaceRoot: string, newConfig: Record<string, 
 }
 
 /**
- * Ensure ~/.claude/settings.json has enableAllProjectMcpServers: true
+ * Ensure global ~/.claude/settings.json has enableAllProjectMcpServers: true.
  */
 export function ensureClaudeSettings(): void {
   const claudeDir = path.join(os.homedir(), '.claude');
-  const settingsPath = path.join(claudeDir, 'settings.json');
+  mergeSettings(claudeDir, {
+    enableAllProjectMcpServers: true,
+  });
+}
 
+/**
+ * Write agent teams env to the scope-appropriate settings.json.
+ */
+export function ensureAgentTeamsEnv(claudeDir: string): void {
+  mergeSettings(claudeDir, {
+    env: {
+      CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1',
+    },
+  });
+}
+
+function mergeSettings(claudeDir: string, patch: Record<string, any>): void {
   if (!fs.existsSync(claudeDir)) {
     fs.mkdirSync(claudeDir, { recursive: true });
   }
 
+  const settingsPath = path.join(claudeDir, 'settings.json');
   let settings: Record<string, any> = {};
   if (fs.existsSync(settingsPath)) {
     try {
@@ -90,8 +106,13 @@ export function ensureClaudeSettings(): void {
     }
   }
 
-  if (!settings.enableAllProjectMcpServers) {
-    settings.enableAllProjectMcpServers = true;
-    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
+  for (const [key, value] of Object.entries(patch)) {
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      settings[key] = { ...(settings[key] || {}), ...value };
+    } else {
+      settings[key] = value;
+    }
   }
+
+  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n', 'utf-8');
 }

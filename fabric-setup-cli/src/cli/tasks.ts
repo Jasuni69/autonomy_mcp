@@ -11,7 +11,7 @@ import {
 } from '../prereqs';
 import { findPowerBIMcpExtension } from '../utils';
 import { formatElapsed } from './animations';
-import { buildMcpConfig, writeMcpConfig, ensureClaudeSettings } from '../mcpConfig';
+import { buildMcpConfig, writeMcpConfig, ensureClaudeSettings, ensureAgentTeamsEnv } from '../mcpConfig';
 import type { ConfigScope } from './prompts';
 import {
   projectPaths, globalPaths,
@@ -184,6 +184,7 @@ export function writeConfig(
   });
   writeMcpConfig(ctx.paths.configDir, mcpConfig);
   ensureClaudeSettings();
+  ensureAgentTeamsEnv(ctx.paths.claudeDir);
   return mcpConfig;
 }
 
