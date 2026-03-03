@@ -13,22 +13,7 @@ export interface CompanyConfig {
   companyName?: string;
 }
 
-const CONFIG_FILE = path.join(os.homedir(), '.fabric-mcp-cli.json');
-
-/** Load saved repo URL from disk */
-function loadSavedConfig(): { repoUrl?: string } {
-  try {
-    if (fs.existsSync(CONFIG_FILE)) {
-      return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
-    }
-  } catch {}
-  return {};
-}
-
-/** Save repo URL to disk for next time */
-function saveConfig(config: { repoUrl: string }): void {
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2) + '\n', 'utf-8');
-}
+const COMPANY_REPO_URL = 'https://github.com/Jason-nicolini/fabric-configs.git';
 
 /**
  * Prompt for company config during Full Setup.
@@ -39,7 +24,7 @@ export async function promptCompanyConfig(): Promise<CompanyConfig> {
     message: 'Knowledge base configuration',
     options: [
       { value: 'bundled', label: 'Use bundled defaults', hint: 'ships with extension' },
-      { value: 'repo', label: 'Sync from company repo', hint: 'GitHub → picks company' },
+      { value: 'repo', label: 'Sync from company repo', hint: 'picks company config' },
     ],
   });
 
@@ -52,48 +37,31 @@ export async function promptCompanyConfig(): Promise<CompanyConfig> {
     return { mode: 'bundled' };
   }
 
-  // Get repo URL
-  const result = await promptRepoAndCompany();
+  const result = await cloneAndPickCompany();
   return result ?? { mode: 'bundled' };
 }
 
 /**
  * Standalone company sync — used from main menu.
- * Clones repo, shows companies, user picks, mirrors files into mcp/.
  */
 export async function runCompanySync(paths: InstallPaths): Promise<void> {
-  const result = await promptRepoAndCompany();
+  const result = await cloneAndPickCompany();
   if (!result || result.mode === 'bundled') return;
 
   await syncCompanyFiles(result.repoUrl!, result.companyName!, paths);
 }
 
 /**
- * Prompt for repo URL → clone → list companies → user picks.
+ * Clone hardcoded repo → list companies → user picks.
  */
-async function promptRepoAndCompany(): Promise<CompanyConfig | null> {
-  const saved = loadSavedConfig();
-
-  const repoUrl = await p.text({
-    message: 'Company config repo URL',
-    placeholder: 'https://github.com/org/fabric-configs',
-    defaultValue: saved.repoUrl,
-    validate: (val) => {
-      if (!val.trim()) return 'URL required';
-      return undefined;
-    },
-  });
-
-  if (p.isCancel(repoUrl)) return null;
-
-  // Clone and discover companies
+async function cloneAndPickCompany(): Promise<CompanyConfig | null> {
   const t0 = Date.now();
   const s = p.spinner();
   s.start('Fetching company list...');
 
   const tmpDir = path.join(os.tmpdir(), 'fabric-company-configs-' + Date.now());
   try {
-    cp.execSync(`git clone --depth 1 "${repoUrl}" "${tmpDir}"`, {
+    cp.execSync(`git clone --depth 1 "${COMPANY_REPO_URL}" "${tmpDir}"`, {
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 30000,
     });
@@ -140,29 +108,24 @@ async function promptRepoAndCompany(): Promise<CompanyConfig | null> {
     return null;
   }
 
-  // Save repo URL for next time
-  saveConfig({ repoUrl: repoUrl as string });
-
-  // Stash tmpDir path on the result so syncCompanyFiles can use it
+  // Stash tmpDir path so syncCompanyFiles can reuse it
   (globalThis as any).__companyTmpDir = tmpDir;
 
   return {
     mode: 'repo',
-    repoUrl: repoUrl as string,
+    repoUrl: COMPANY_REPO_URL,
     companyName: companyName as string,
   };
 }
 
 /**
  * Mirror company files from cloned repo into mcp/ paths.
- * Adds new files, updates changed ones, removes files not in repo.
  */
 export async function syncCompanyFiles(
   repoUrl: string,
   companyName: string,
   paths: InstallPaths
 ): Promise<void> {
-  // Use already-cloned tmpDir if available, otherwise re-clone
   let tmpDir = (globalThis as any).__companyTmpDir;
   let needsCleanup = false;
 
@@ -229,7 +192,6 @@ export async function syncCompanyFiles(
 
   p.log.success(`Company "${companyName}" config synced`);
 
-  // Cleanup
   if (needsCleanup) {
     cleanupTmp(tmpDir);
   }
@@ -238,7 +200,6 @@ export async function syncCompanyFiles(
 
 // --- helpers ---
 
-/** Describe what's in a company folder for the select hint */
 function describeCompanyFolder(dir: string): string {
   const items: string[] = [];
   if (fs.existsSync(path.join(dir, 'CLAUDE.md'))) items.push('CLAUDE.md');
@@ -252,16 +213,11 @@ function describeCompanyFolder(dir: string): string {
   return items.join(', ') || 'empty';
 }
 
-/** Mirror srcDir → destDir. Removes files in dest that aren't in src. */
 function mirrorDir(srcDir: string, destDir: string): void {
   if (!fs.existsSync(destDir)) {
     fs.mkdirSync(destDir, { recursive: true });
   }
-
-  // Copy all from src
   copyDirRecursive(srcDir, destDir);
-
-  // Remove files in dest that don't exist in src
   removeStaleFiles(srcDir, destDir);
 }
 
