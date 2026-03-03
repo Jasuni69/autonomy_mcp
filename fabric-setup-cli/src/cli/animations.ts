@@ -72,8 +72,10 @@ export function successBoxLines(serverCount: number): BoxLine[] {
   return [
     { text: pc.green('✓') + pc.bold('  Setup Complete!'), visibleLen: 19 },
     { text: '', visibleLen: 0 },
-    { text: 'Restart Claude Code to activate', visibleLen: 31 },
-    { text: `your ${serverCount} MCP server(s).`, visibleLen: 17 + String(serverCount).length },
+    { text: `${serverCount} MCP server(s) configured.`, visibleLen: 24 + String(serverCount).length },
+    { text: '', visibleLen: 0 },
+    { text: pc.cyan('Ctrl+Shift+P') + ' → Reload Window', visibleLen: 30 },
+    { text: 'to activate.', visibleLen: 12 },
   ];
 }
 
