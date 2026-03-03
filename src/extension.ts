@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('fabricPowerbi.quickMenu', () =>
-      showQuickMenu(context)
+      launchSetupCli(context)
     ),
     vscode.commands.registerCommand('fabricPowerbi.setupWorkspace', () =>
       launchSetupCli(context)
@@ -51,7 +51,7 @@ export function deactivate() {}
 /**
  * Launch interactive CLI in a VS Code terminal for manual "Full Setup".
  */
-function launchSetupCli(context: vscode.ExtensionContext, _action?: string): void {
+function launchSetupCli(context: vscode.ExtensionContext): void {
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
   if (!workspaceFolder) {
     vscode.window.showWarningMessage('No workspace folder open.');
@@ -73,34 +73,6 @@ function launchSetupCli(context: vscode.ExtensionContext, _action?: string): voi
   const cli = cliPath.replace(/\\/g, '/');
   // Clear screen first so the raw command isn't visible, then run CLI
   terminal.sendText(`clear 2>/dev/null; node "${cli}" --workspace "${ws}" --extension-path "${ext}"`);
-}
-
-async function showQuickMenu(context: vscode.ExtensionContext): Promise<void> {
-  const items: vscode.QuickPickItem[] = [
-    { label: '$(rocket) Full Setup', description: 'Install servers, copy KB, write config' },
-    { label: '$(checklist) Check Prerequisites', description: 'Python, uv, Azure CLI, .NET...' },
-    { label: '$(beaker) Smoke Test Servers', description: 'Verify MCP servers can start' },
-    { label: '$(refresh) Regenerate .mcp.json', description: 'Rebuild config from current state' },
-    { label: '$(cloud) Azure Login / Switch Tenant', description: 'Switch Fabric tenant' },
-  ];
-
-  const pick = await vscode.window.showQuickPick(items, {
-    placeHolder: 'Fabric & Power BI Toolkit',
-  });
-
-  if (!pick) return;
-
-  if (pick.label.includes('Full Setup')) {
-    launchSetupCli(context);
-  } else if (pick.label.includes('Check Prerequisites')) {
-    runPrereqCheck();
-  } else if (pick.label.includes('Smoke Test')) {
-    launchSetupCli(context, 'smoke');
-  } else if (pick.label.includes('Regenerate')) {
-    regenerateMcpJson();
-  } else if (pick.label.includes('Azure Login')) {
-    launchSetupCli(context, 'azure');
-  }
 }
 
 async function runPrereqCheck(): Promise<void> {
