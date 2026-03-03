@@ -375,6 +375,16 @@ async function main() {
     await microSpinner('Initializing...', 600);
   }
 
+  // Drain any buffered stdin (e.g. trailing Enter from VS Code sendText)
+  if (!auto && process.stdin.isTTY) {
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    await sleep(150);
+    while (process.stdin.read() !== null) { /* discard */ }
+    process.stdin.pause();
+    process.stdin.setRawMode(false);
+  }
+
   const defaultServers = { fabricCore: true, powerbiModeling: true, translationAudit: true };
   const defaultPaths = resolvePaths(workspace, 'project');
   const ctx: CliContext = {
