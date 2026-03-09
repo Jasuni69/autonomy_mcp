@@ -100,16 +100,20 @@ Tables with M expressions containing Base64-encoded data or Table.FromRows with 
 
 **This is the step that gets missed.** After changing data values in Phase 2-3, any DAX that matched on those old English values is NOW BROKEN.
 
-- [ ] **4.1** For EVERY text value that was changed, search ALL measures for that old value:
+- [ ] **4.1** Search ALL measures for ALL changed values in ONE query:
   ```
-  For each old_value in changed_values:
-    Query INFO.MEASURES() WHERE Expression CONTAINS "old_value"
-    Use CONTAINSSTRING(), not SEARCH() (SEARCH returns number, not boolean)
+  -- Build one compound FILTER instead of N separate queries
+  EVALUATE
+  FILTER(
+    INFO.MEASURES(),
+    CONTAINSSTRING([Expression], "old_value_1") ||
+    CONTAINSSTRING([Expression], "old_value_2") || ...
+  )
   ```
-- [ ] **4.2** For EVERY text value that was changed, search ALL calculated columns:
+- [ ] **4.2** Same compound query for ALL calculated columns in one pass:
   ```
-  For each old_value in changed_values:
-    Query INFO.COLUMNS() WHERE Expression CONTAINS "old_value"
+  EVALUATE FILTER(INFO.COLUMNS(), [Expression] <> BLANK() &&
+    (CONTAINSSTRING([Expression], "old_value_1") || ...))
   ```
 - [ ] **4.3** Update every found measure/column to use the new Swedish value
   - Include color/conditional formatting measures — they often compare against data values
@@ -205,14 +209,15 @@ Translated values must match across related tables.
 
 ---
 
-## Phase 9: Full Verification Sweep
+## Phase 9: Full Verification Sweep (Skip if phases 1-8 were clean)
 
-Final pass to catch anything missed in the semantic model.
+**Skip this phase if all previous phases completed with zero errors.** The Audit Phase runs the same checks via the translation audit MCP server — Phase 9 is redundant when the earlier work was clean.
 
-- [ ] **9.1** Query EVERY table that has text columns. Look for remaining English.
-- [ ] **9.2** Query ALL measure expressions one final time. Search for quoted English strings, SWITCH/IF value comparisons.
-- [ ] **9.3** Query ALL calculated column expressions. Same checks.
-- [ ] **9.4** Document what's left untranslated and WHY:
+Only run Phase 9 if earlier phases had failures, partial results, or skipped items:
+
+- [ ] **9.1** Query tables that had errors or were skipped. Look for remaining English.
+- [ ] **9.2** Query measures that failed to update. Search for quoted English strings.
+- [ ] **9.3** Document what's left untranslated and WHY:
   - Source system identifiers (expected)
   - Large tables awaiting source refresh (documented)
   - Pre-existing broken measures (documented)
@@ -390,17 +395,18 @@ Final pass to catch anything missed in the semantic model.
  SETUP: User saves .pbix as .pbip project in workspace
      ↓
  0.  Inventory          → Know what you have (model + report files)
- 1.  Captions           → Translate metadata names (MCP)
- 2.  Calculated tables  → Translate hardcoded DAX data (MCP)
- 3.  Static M tables    → Translate hardcoded M data (MCP)
- 4.  BREAKAGE SCAN      → Fix cascading breaks from 2+3 (MCP)
+ 1.  Captions           → Translate metadata names (MCP) — batch ALL tables+columns+measures in one call
+ 2.  Calculated tables  → Translate hardcoded DAX data (MCP)  ─┐ independent per table,
+ 3.  Static M tables    → Translate hardcoded M data (MCP)     ─┘ process all tables before moving on
+ 4.  BREAKAGE SCAN      → ONE compound query for all changed values (MCP)
  5.  Measure text       → Translate display strings in DAX (MCP)
- 6.  Source tables       → Translate dimension data values (MCP)
+ 6.  Source tables      → Translate dimension data values (MCP) — batch all tables
  7.  Date table         → Special handling for dates (MCP)
  8.  Relationships      → Verify cross-table consistency (MCP)
- 9.  Full sweep         → Final model verification (MCP)
-10.  Report layer       → Translate visual titles, text boxes, etc. (JSON editing)
+ 9.  Full sweep         → SKIP if phases 1-8 were clean (audit phase covers this)
+10.  Report layer       → Translate visual titles, text boxes, etc. (JSON editing — scripts handle bulk)
      ↓
+ AUDIT: validate_translation_coverage → PASS ends workflow
  DONE: User saves, publishes translated report
 ```
 
