@@ -6,7 +6,9 @@ import {
   checkPython, checkUv, checkAzureCli, checkAzureAuth, checkOdbc, checkDotnet,
 } from './prereqs';
 import { buildMcpConfig, writeMcpConfig } from './mcpConfig';
-import { SETUP_VERSION, CURRENT_VERSION, FABRIC_CORE_DIR, TRANSLATION_AUDIT_DIR } from './constants';
+import {
+  SETUP_VERSION, CURRENT_VERSION, globalPaths, projectPaths,
+} from './constants';
 
 let outputChannel: vscode.OutputChannel;
 
@@ -71,8 +73,8 @@ function launchSetupCli(context: vscode.ExtensionContext): void {
   const ws = workspaceFolder.uri.fsPath.replace(/\\/g, '/');
   const ext = context.extensionPath.replace(/\\/g, '/');
   const cli = cliPath.replace(/\\/g, '/');
-  // Clear screen first so the raw command isn't visible, then run CLI
-  terminal.sendText(`clear 2>/dev/null; node "${cli}" --workspace "${ws}" --extension-path "${ext}"`);
+  // Clear screen (errors suppressed for cross-shell compat)
+  terminal.sendText(`clear 2>/dev/null || cls 2>/dev/null || true && node "${cli}" --workspace "${ws}" --extension-path "${ext}"`);
 }
 
 async function runPrereqCheck(): Promise<void> {
@@ -109,25 +111,34 @@ async function regenerateMcpJson(): Promise<void> {
     return;
   }
 
-  const fabricCoreOk = fs.existsSync(path.join(FABRIC_CORE_DIR, 'fabric_mcp_stdio.py'));
+  const workspaceRoot = workspaceFolder.uri.fsPath;
+  const projectInstallPaths = projectPaths(workspaceRoot);
+  const projectMcpJson = path.join(projectInstallPaths.configDir, '.mcp.json');
+  const hasProjectInstall =
+    fs.existsSync(projectMcpJson) ||
+    fs.existsSync(projectInstallPaths.fabricCoreDir) ||
+    fs.existsSync(projectInstallPaths.translationAuditDir);
+  const paths = hasProjectInstall ? projectInstallPaths : globalPaths();
+
+  const fabricCoreOk = fs.existsSync(path.join(paths.fabricCoreDir, 'fabric_mcp_stdio.py'));
   const powerbiExePath = findPowerBIMcpExtension();
 
   // Check for audit venv
   const auditPython = process.platform === 'win32'
-    ? path.join(TRANSLATION_AUDIT_DIR, '.venv', 'Scripts', 'python.exe')
-    : path.join(TRANSLATION_AUDIT_DIR, '.venv', 'bin', 'python');
+    ? path.join(paths.translationAuditDir, '.venv', 'Scripts', 'python.exe')
+    : path.join(paths.translationAuditDir, '.venv', 'bin', 'python');
   const auditPythonPath = fs.existsSync(auditPython) ? auditPython : null;
 
   const mcpConfig = buildMcpConfig({
     enableFabricCore: fabricCoreOk,
     powerbiExePath,
     auditPythonPath,
+    paths,
   });
 
-  writeMcpConfig(workspaceFolder.uri.fsPath, mcpConfig);
+  writeMcpConfig(paths.configDir, mcpConfig);
   const serverCount = Object.keys(mcpConfig.mcpServers).length;
   vscode.window.showInformationMessage(
-    `.mcp.json regenerated with ${serverCount} server(s). Restart Claude Code to reload.`
+    `.mcp.json regenerated in ${paths.configDir} with ${serverCount} server(s). Restart Claude Code to reload.`
   );
 }
-
