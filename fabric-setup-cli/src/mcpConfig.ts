@@ -82,19 +82,6 @@ export function ensureClaudeSettings(): void {
   });
 }
 
-/**
- * Write agent teams env to the scope-appropriate settings.json.
- * Project scope: <workspace>/mcp/.claude/settings.json
- * Global scope:  ~/.claude/settings.json
- */
-export function ensureAgentTeamsEnv(claudeDir: string): void {
-  mergeSettings(claudeDir, {
-    env: {
-      CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1',
-    },
-  });
-}
-
 /** Deep-merge `patch` into settings.json at `claudeDir`, creating if needed. */
 function mergeSettings(claudeDir: string, patch: Record<string, any>): void {
   if (!fs.existsSync(claudeDir)) {

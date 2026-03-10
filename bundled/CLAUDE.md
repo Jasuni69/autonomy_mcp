@@ -72,13 +72,14 @@ This server talks to a **running Power BI Desktop instance** — the report must
 
 ## Agent Routing
 
-Before starting a task, read the matching agent file for domain-specific expertise:
+For multi-domain tasks, use `/deploy-agents` to launch parallel subagents with domain-specific expertise.
 
-- **Lakehouses, ETL, delta tables, data loading, notebooks** → read `.claude/agents/data-engineer.md`
-- **DAX measures, semantic models, model optimization** → read `.claude/agents/dax-analyst.md`
-- **Translating Power BI reports** → read `.claude/agents/translator.md`
-- **SQL queries, data questions, analytics** → read `.claude/agents/sql-analyst.md`
-- **Git integration, deployment pipelines, CI/CD** → read `.claude/agents/cicd-engineer.md`
+For single-domain tasks, read the relevant agent file first:
+- **ETL, lakehouses, notebooks** → `.claude/agents/data-engineer.md`
+- **DAX, semantic models** → `.claude/agents/dax-analyst.md`
+- **Translations** → `.claude/agents/translator.md`
+- **SQL, analytics** → `.claude/agents/sql-analyst.md`
+- **Git, CI/CD, pipelines** → `.claude/agents/cicd-engineer.md`
 
 ---
 

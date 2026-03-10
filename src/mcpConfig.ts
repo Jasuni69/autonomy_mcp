@@ -1,13 +1,15 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { MCP_SERVER_KEYS, FABRIC_CORE_DIR, TRANSLATION_AUDIT_DIR } from './constants';
+import { MCP_SERVER_KEYS } from './constants';
+import type { InstallPaths } from './constants';
 import { findUvPath } from './prereqs';
 
 export interface McpConfigOptions {
   enableFabricCore: boolean;
   powerbiExePath: string | null;
   auditPythonPath: string | null;
+  paths: InstallPaths;
 }
 
 export function buildMcpConfig(options: McpConfigOptions): Record<string, any> {
@@ -15,7 +17,7 @@ export function buildMcpConfig(options: McpConfigOptions): Record<string, any> {
 
   if (options.enableFabricCore) {
     const uvPath = findUvPath();
-    const fabricDir = FABRIC_CORE_DIR.replace(/\\/g, '/');
+    const fabricDir = options.paths.fabricCoreDir.replace(/\\/g, '/');
     servers[MCP_SERVER_KEYS.fabricCore] = {
       command: uvPath,
       args: ['--directory', fabricDir, 'run', 'fabric_mcp_stdio.py'],
@@ -31,7 +33,7 @@ export function buildMcpConfig(options: McpConfigOptions): Record<string, any> {
   }
 
   if (options.auditPythonPath) {
-    const serverPath = path.join(TRANSLATION_AUDIT_DIR, 'server.py');
+    const serverPath = path.join(options.paths.translationAuditDir, 'server.py');
     servers[MCP_SERVER_KEYS.translationAudit] = {
       command: options.auditPythonPath,
       args: [serverPath],
@@ -46,6 +48,9 @@ export function buildMcpConfig(options: McpConfigOptions): Record<string, any> {
  * Preserves any servers not managed by this extension.
  */
 export function writeMcpConfig(workspaceRoot: string, newConfig: Record<string, any>): void {
+  if (!fs.existsSync(workspaceRoot)) {
+    fs.mkdirSync(workspaceRoot, { recursive: true });
+  }
   const mcpJsonPath = path.join(workspaceRoot, '.mcp.json');
   let existing: Record<string, any> = {};
 
@@ -62,7 +67,6 @@ export function writeMcpConfig(workspaceRoot: string, newConfig: Record<string, 
   }
 
   // Merge our servers into existing, preserving user's other servers
-  const ourKeys = Object.values(MCP_SERVER_KEYS);
   for (const [key, value] of Object.entries(newConfig.mcpServers || {})) {
     existing.mcpServers[key] = value;
   }
@@ -77,17 +81,6 @@ export function ensureClaudeSettings(): void {
   const claudeDir = path.join(os.homedir(), '.claude');
   mergeSettings(claudeDir, {
     enableAllProjectMcpServers: true,
-  });
-}
-
-/**
- * Write agent teams env to the scope-appropriate settings.json.
- */
-export function ensureAgentTeamsEnv(claudeDir: string): void {
-  mergeSettings(claudeDir, {
-    env: {
-      CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1',
-    },
   });
 }
 
