@@ -135,15 +135,38 @@ Measures that RETURN English text visible to users.
 
 - [ ] **5.1** Search ALL measure expressions for quoted strings:
   ```
-  Patterns to search:
+  Patterns to search (cast a wide net — false positives are cheap, missed strings are not):
   - Common English words: "Country", "Clinic", "Revenue", "Budget", "Total",
     "Year", "Month", "Week", "Selected", "Display", "Active", "Current",
     "Average", "Filter", "Show", "All", "None", "Other", "Yes", "No",
     "N/A", "Error", "Warning", "vs ", "per ", "Forecast", "Actuals",
     "Churn", "Outcome", "Invoiced", "Customer", "Ledger", "Profit",
     "Board", "Multiple", "Last Updated"
-  - Label patterns: "Label", "Title", "Header", "Text"
-  - Fallback values: "No data", "Not available", "N/A"
+  - Financial/business: "Revenue", "Cost", "Margin", "Sales", "Target",
+    "Variance", "Growth", "Trend", "Share", "Rate", "Volume", "Amount",
+    "Balance", "Income", "Expense", "Asset", "Liability", "Equity",
+    "Cash", "Flow", "Net", "Gross", "Operating", "Capital", "Return",
+    "Headcount", "Salary", "Turnover", "Retention", "Absence",
+    "Supplier", "Vendor", "Purchase", "Order", "Delivery", "Payment",
+    "Outstanding", "Overdue", "Due", "Period", "Quarter", "Half",
+    "Accumulated", "Rolling", "Closing", "Opening", "Remaining",
+    "Approved", "Pending", "Rejected", "Completed", "In Progress",
+    "Upsell", "Downsell", "Renewal", "Contract", "Account",
+    "Department", "Division", "Region", "Site", "Location", "Group"
+  - Time-related: "Previous", "Prior", "Last", "Next", "Same",
+    "Compared", "Change", "From", "To", "Since", "Until",
+    "Daily", "Weekly", "Monthly", "Quarterly", "Annually", "YTD",
+    "Full Year", "Year-End", "Mid-Year", "End of"
+  - Label/UI patterns: "Label", "Title", "Header", "Text", "Description",
+    "Name", "Type", "Status", "Category", "Subcategory", "Summary",
+    "Detail", "Note", "Comment", "Remark"
+  - Fallback/empty values: "No data", "Not available", "N/A", "No selection",
+    "No result", "Not applicable", "Unknown", "Undefined", "Missing",
+    "Empty", "Blank"
+  - Comparison labels: "vs LY", "vs PY", "vs Budget", "vs Forecast",
+    "Comp", "Diff", "Delta"
+  - Camel/pascal-case compound words: "CareTaker", "FullTime",
+    "HeadCount", "CostCenter", "LegalEntity" (search case-insensitive)
   ```
 - [ ] **5.2** For each found measure, determine if the string is:
   - **User-facing display text** → TRANSLATE
@@ -209,15 +232,14 @@ Translated values must match across related tables.
 
 ---
 
-## Phase 9: Full Verification Sweep (Skip if phases 1-8 were clean)
+## Phase 9: Full Verification Sweep
 
-**Skip this phase if all previous phases completed with zero errors.** The Audit Phase runs the same checks via the translation audit MCP server — Phase 9 is redundant when the earlier work was clean.
+**Always run this phase.** Even when phases 1–8 completed cleanly, the audit catches classes of issues the manual phases don't check (e.g., missing `displayName` on projections, auto-generated titles, slicer headers). Skipping this risks letting English leak through to the final report.
 
-Only run Phase 9 if earlier phases had failures, partial results, or skipped items:
-
-- [ ] **9.1** Query tables that had errors or were skipped. Look for remaining English.
-- [ ] **9.2** Query measures that failed to update. Search for quoted English strings.
-- [ ] **9.3** Document what's left untranslated and WHY:
+- [ ] **9.1** Query ALL tables and sample text columns. Look for remaining English values.
+- [ ] **9.2** Query ALL measures. Search for quoted English strings using the expanded keyword list from Phase 5.1.
+- [ ] **9.3** Run `validate_translation_coverage` via the translation-audit MCP to get a PASS/FAIL verdict on the report layer.
+- [ ] **9.4** Document what's left untranslated and WHY:
   - Source system identifiers (expected)
   - Large tables awaiting source refresh (documented)
   - Pre-existing broken measures (documented)
@@ -286,12 +308,21 @@ Only run Phase 9 if earlier phases had failures, partial results, or skipped ite
   Grep all visual.json for title text:
   Pattern: visualContainerObjects → title → text → Literal → Value
 
-  Common English to search for:
+  Common English to search for (expand aggressively — false positives are cheap):
   "Invoiced", "Customer", "Churn", "Accumulated", "Actuals",
   "Budget", "Forecast", "Comparison", "Overview", "Revenue",
   "Profit", "Balance", "Development", "Top ", "by ", "vs ",
   "Chosen", "Selected", "Full Year", "YTD", "Month", "Year",
-  "Financial KPIs", "Ledger"
+  "Financial KPIs", "Ledger", "Income", "Expense", "Cost",
+  "Margin", "Sales", "Target", "Variance", "Growth", "Trend",
+  "Share", "Volume", "Amount", "Net", "Gross", "Operating",
+  "Headcount", "Salary", "Turnover", "Retention", "Absence",
+  "Supplier", "Purchase", "Order", "Delivery", "Payment",
+  "Outstanding", "Overdue", "Period", "Quarter", "Summary",
+  "Detail", "Status", "Category", "per ", "and ", "Total",
+  "Rolling", "Closing", "Opening", "Remaining", "Average",
+  "Accumulated", "Distribution", "Breakdown", "Analysis",
+  "Performance", "Result", "Outcome", "Progress", "History"
   ```
   IMPORTANT: A targeted scan of just a few pages will miss 80%+. Scan ALL pages every time.
 
@@ -327,6 +358,12 @@ Only run Phase 9 if earlier phases had failures, partial results, or skipped ite
   Visuals with `title.show=true` (or default) but no custom `text` get auto-generated English titles from model property names. This script injects Swedish titles based on projection displayName values. **Run AFTER `pbip_translate_display_names.py`** — the title script uses displayName values from projections to generate Swedish titles.
 
 - [ ] **10.5** Translate slicer headers — scan for `objects.header[].properties.text` with English values. The `pbip_fix_visual_titles.py` script also handles slicer headers in the same pass.
+
+- [ ] **10.5b** Check gauge and KPI visual-specific text:
+  - Gauge visuals: `objects.target[].properties.text` (target label), `objects.calloutValue[].properties.text`
+  - KPI visuals: `objects.trendAxis[].properties.text`, `objects.status[].properties.text`, `objects.goal[].properties.label`
+  - Scorecard visuals: check for subheadings and status labels in `objects`
+  - These visual types store translatable text in non-standard property paths that title/header scans miss.
 
 - [ ] **10.6** Scan for text boxes (`visualType: "textbox"`) and buttons (`visualType: "actionButton"`) with English content
 

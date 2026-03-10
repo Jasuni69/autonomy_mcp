@@ -43,9 +43,6 @@ from tools.notebook import (
     run_notebook_job,
     get_run_status,
     cancel_notebook_job,
-    install_requirements,
-    install_wheel,
-    cluster_info,
 )
 from tools.items import (
     resolve_item,
@@ -221,9 +218,6 @@ __all__ = [
     "run_notebook_job",
     "get_run_status",
     "cancel_notebook_job",
-    "install_requirements",
-    "install_wheel",
-    "cluster_info",
     "resolve_item",
     "list_items",
     "get_permissions",

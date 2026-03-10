@@ -3,7 +3,7 @@ import * as path from 'path';
 
 export const SETUP_FLAG = 'fabricPowerbi.setupComplete';
 export const SETUP_VERSION = 'fabricPowerbi.setupVersion';
-export const CURRENT_VERSION = '1.9.0';
+export const CURRENT_VERSION = '3.1.0';
 
 /** Global install directory for MCP servers */
 export const GLOBAL_MCP_DIR = path.join(os.homedir(), '.fabric-mcp');
@@ -75,6 +75,9 @@ export const AGENT_FILES = [
 /** Skill directories copied to .claude/skills/ */
 export const SKILL_DIR = 'skills/fabric-toolkit';
 export const DEPLOY_AGENTS_SKILL_DIR = 'skills/deploy-agents';
+
+/** raw_api_call documentation directory — copied recursively to kbDir */
+export const RAW_API_DIR = 'raw-api';
 
 /** Files within the fabric-toolkit skill directory to copy */
 export const SKILL_FILES = [

@@ -17,12 +17,14 @@ tsconfig.json
 **/.venv/**
 **/*.pyc
 .claude/**
+.mcp.json
 *.png
 !icon.png
 *.jpg
 *.vsix
 *.zip
 NUL
+nul
 *.md
 !README.md
 !bundled/**/*.md

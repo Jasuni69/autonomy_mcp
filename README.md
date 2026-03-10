@@ -10,13 +10,13 @@ Auto-configures MCP servers for [Claude Code](https://claude.ai/claude-code) to 
 - **CLAUDE.md knowledge base** — Comprehensive agent instructions so Claude knows how to use all tools correctly
 - **Interactive setup CLI** — Terminal-based setup with menus, spinners, progress, and project-scoped installs
 
-## What's New in v2.1
+## What's New in v3.1
 
-- **Interactive CLI** — "Full Setup" now opens a terminal with an interactive menu instead of running silently
-- **Project-scoped installs** — Choose "Project (mcp/)" to install everything into a self-contained `mcp/` folder in your workspace. No global pollution.
-- **Company config sync** — Pull company-specific CLAUDE.md, agents, and skills from a GitHub repo
-- **Main menu** — Run individual tasks (prereqs, smoke test, company sync) without re-running full setup
-- **Global or Project** — Choose where servers and config land. Project = portable, self-contained. Global = shared across workspaces.
+- **`raw_api_call` Tool (100% API Coverage)** — A single escape-hatch tool that lets Claude call *any* Microsoft API (Fabric, Power BI, Graph, Storage, Azure ARM) with automatic Microsoft Entra ID token management.
+- **Deep Token Savings** — All 138+ MCP tools now use *deferred loading*, meaning Claude Code won't waste ~5,000+ tokens continuously keeping them in context. It uses ToolSearch to discover and load schemas only when needed.
+- **Lazy-Loaded API Docs** — The `raw_api_call` tool comes with a massive bundled Markdown documentation library (covering all Fabric/Graph/Power BI APIs). It uses an indexing system (`INDEX.md` → `audience/_index.md` → `category.md`) so Claude only reads the specific API docs it needs.
+- **Interactive CLI Setup** — "Full Setup" opens an interactive terminal menu with project-scoped or global install destinations.
+- **Company Config Sync** — Pull company-specific `CLAUDE.md`, agents, and skills from a shared GitHub repo.
 
 ## Prerequisites
 

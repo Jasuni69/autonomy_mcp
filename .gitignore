@@ -6,3 +6,5 @@ node_modules/
 **/.venv/
 **/*.pyc
 .fabric-mcp/
+.mcp.json
+.claude/

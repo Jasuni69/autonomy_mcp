@@ -3,12 +3,45 @@ import * as path from 'path';
 
 export const SETUP_FLAG = 'fabricPowerbi.setupComplete';
 export const SETUP_VERSION = 'fabricPowerbi.setupVersion';
-export const CURRENT_VERSION = '2.2.3';
+export const CURRENT_VERSION = '3.1.0';
 
 /** Global install directory for MCP servers */
 export const GLOBAL_MCP_DIR = path.join(os.homedir(), '.fabric-mcp');
 export const FABRIC_CORE_DIR = path.join(GLOBAL_MCP_DIR, 'fabric-core');
 export const TRANSLATION_AUDIT_DIR = path.join(GLOBAL_MCP_DIR, 'translation-audit');
+
+/** Resolved install paths - varies by scope (project vs global) */
+export interface InstallPaths {
+  mcpRoot: string;
+  fabricCoreDir: string;
+  translationAuditDir: string;
+  configDir: string;
+  kbDir: string;
+  claudeDir: string;
+}
+
+export function projectPaths(workspaceRoot: string): InstallPaths {
+  const mcpRoot = path.join(workspaceRoot, 'mcp');
+  return {
+    mcpRoot,
+    fabricCoreDir: path.join(mcpRoot, '.servers', 'fabric-core'),
+    translationAuditDir: path.join(mcpRoot, '.servers', 'translation-audit'),
+    configDir: mcpRoot,
+    kbDir: mcpRoot,
+    claudeDir: path.join(mcpRoot, '.claude'),
+  };
+}
+
+export function globalPaths(): InstallPaths {
+  return {
+    mcpRoot: GLOBAL_MCP_DIR,
+    fabricCoreDir: FABRIC_CORE_DIR,
+    translationAuditDir: TRANSLATION_AUDIT_DIR,
+    configDir: path.join(os.homedir(), '.claude'),
+    kbDir: path.join(os.homedir()),
+    claudeDir: path.join(os.homedir(), '.claude'),
+  };
+}
 
 export const MCP_SERVER_KEYS = {
   fabricCore: 'fabric-core',

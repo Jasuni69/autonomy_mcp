@@ -2,10 +2,18 @@
   "name": "fabric-powerbi-toolkit",
   "displayName": "Fabric & Power BI Toolkit for Claude",
   "description": "Auto-configures MCP servers for Microsoft Fabric (138+ tools), Power BI Modeling, and Translation Audit. Generates CLAUDE.md knowledge base for Claude Code.",
-  "version": "2.7.0",
+  "version": "3.1.0",
   "publisher": "JasonNicolini",
   "icon": "icon.png",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jasuni69/autonomy_mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Jasuni69/autonomy_mcp/issues"
+  },
+  "homepage": "https://github.com/Jasuni69/autonomy_mcp#readme",
   "engines": {
     "vscode": "^1.80.0"
   },

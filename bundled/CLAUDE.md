@@ -91,3 +91,13 @@ For single-domain tasks, read the relevant agent file first:
 | `create_measure` / `update_measure` / `delete_measure` / `get_model_schema` | Only works with user-created semantic models. Auto-generated lakehouse default models don't support `getDefinition`. |
 | `set_permissions` | Workspace-level only. Fabric REST API doesn't support item-level permissions. |
 | Lakehouse SQL | Read-only. No INSERT/UPDATE/DELETE/DDL. New delta tables take 5-10 min to appear. |
+
+---
+
+## raw_api_call: Universal API Escape Hatch
+
+For **any** Fabric, Power BI, Graph, or OneLake operation not covered by the built-in tools above, use the `raw_api_call` tool.
+It supports 4 audiences (`fabric`, `powerbi`, `graph`, `storage`) with automatic Azure token management.
+
+**Before calling:** read `raw-api/INDEX.md` to find the correct endpoint, method, and request body.
+Do NOT read more than 3 docs per call: INDEX → audience _index → category file.

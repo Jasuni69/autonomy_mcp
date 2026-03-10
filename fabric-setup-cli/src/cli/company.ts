@@ -333,8 +333,62 @@ async function pickLocalFiles(): Promise<CompanyConfig | null> {
   return { mode: 'local' };
 }
 
+const LOCAL_MARKER = '\n\n<!-- LOCAL OVERRIDES -->\n';
+
 /**
- * Sync individually picked local files into mcp/ paths.
+ * Standalone local sync — used from main menu "Local Overrides".
+ */
+export async function runLocalSync(paths: InstallPaths): Promise<void> {
+  const result = await pickLocalFiles();
+  if (!result || result.mode !== 'local') return;
+  syncLocalFilesAppend(paths);
+}
+
+/**
+ * Sync local files with CLAUDE.md append logic (no overwrite).
+ */
+function syncLocalFilesAppend(paths: InstallPaths): void {
+  const picks: LocalPicks | undefined = (globalThis as any).__localPicks;
+  if (!picks) return;
+
+  if (picks.claudeMdPath && fs.existsSync(picks.claudeMdPath)) {
+    appendClaudeMd(picks.claudeMdPath, path.join(paths.kbDir, 'CLAUDE.md'));
+    p.log.message(`${pc.green('✓')} CLAUDE.md appended ← ${pc.dim(picks.claudeMdPath)}`);
+  }
+
+  if (picks.agentsDir && fs.existsSync(picks.agentsDir)) {
+    const destAgents = path.join(paths.claudeDir, 'agents');
+    mirrorDir(picks.agentsDir, destAgents);
+    const count = fs.readdirSync(destAgents).filter(f => f.endsWith('.md')).length;
+    p.log.message(`${pc.green('✓')} agents/ synced (${count} files) ← ${pc.dim(picks.agentsDir)}`);
+  }
+
+  if (picks.skillsDir && fs.existsSync(picks.skillsDir)) {
+    const destSkills = path.join(paths.claudeDir, 'skills');
+    mirrorDir(picks.skillsDir, destSkills);
+    const count = countFiles(destSkills);
+    p.log.message(`${pc.green('✓')} skills/ synced (${count} files) ← ${pc.dim(picks.skillsDir)}`);
+  }
+
+  p.log.success('Local overrides synced');
+  delete (globalThis as any).__localPicks;
+}
+
+function appendClaudeMd(localPath: string, destPath: string): void {
+  const localContent = fs.readFileSync(localPath, 'utf-8');
+  let existing = fs.existsSync(destPath) ? fs.readFileSync(destPath, 'utf-8') : '';
+
+  const markerIdx = existing.indexOf(LOCAL_MARKER);
+  if (markerIdx !== -1) {
+    existing = existing.slice(0, markerIdx);
+  }
+
+  fs.mkdirSync(path.dirname(destPath), { recursive: true });
+  fs.writeFileSync(destPath, existing + LOCAL_MARKER + localContent + '\n', 'utf-8');
+}
+
+/**
+ * Sync individually picked local files into mcp/ paths (overwrites CLAUDE.md — used by Full Setup).
  */
 export function syncLocalFiles(paths: InstallPaths): void {
   const picks: LocalPicks | undefined = (globalThis as any).__localPicks;

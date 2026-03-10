@@ -4,7 +4,7 @@ import * as p from '@clack/prompts';
 import pc from 'picocolors';
 import { createConsoleLogger } from './logger';
 import { promptServerSelection, promptCompanyConfig, promptConfigScope } from './prompts';
-import { runCompanySync, syncCompanyFiles, syncLocalFiles } from './company';
+import { runCompanySync, runLocalSync, syncCompanyFiles, syncLocalFiles } from './company';
 import type { ConfigScope } from './types';
 import {
   resolvePaths, runPrereqChecks, installServers, copyKnowledgeBase, writeConfig,
@@ -13,7 +13,7 @@ import {
 import type { CliContext } from './tasks';
 import {
   printBannerAnimated, printBannerInstant, gradientColor,
-  microSpinner, phaseDivider, stepLabel, renderSuccessBox,
+  microSpinner, phaseDivider, stepLabel, renderSuccessBox, sleep,
 } from './animations';
 import {
   listAzureTenants, getActiveTenant, loginToTenant,
@@ -298,6 +298,7 @@ async function mainMenu(ctx: CliContext, auto: boolean): Promise<void> {
         { value: 'prereqs', label: 'Check Prerequisites', hint: 'Python, uv, Azure CLI, .NET...' },
         { value: 'smoke', label: 'Smoke Test Servers', hint: 'verify MCP servers can start' },
         { value: 'company', label: 'Company Config', hint: 'sync KB from company repo' },
+        { value: 'local', label: 'Local Overrides', hint: 'pick local CLAUDE.md, agents/, skills/' },
         { value: 'azure', label: 'Azure Login / Switch Tenant', hint: 'switch Fabric tenant' },
         { value: 'exit', label: 'Exit' },
       ],
@@ -338,6 +339,13 @@ async function mainMenu(ctx: CliContext, auto: boolean): Promise<void> {
         await runCompanySync(ctx.paths);
         break;
 
+      case 'local':
+        if (!ctx.paths.mcpRoot) {
+          ctx.paths = resolvePaths(ctx.workspaceRoot, 'project');
+        }
+        await runLocalSync(ctx.paths);
+        break;
+
       case 'azure':
         await runAzureTenantSwitch();
         break;
@@ -375,17 +383,7 @@ async function main() {
     await microSpinner('Initializing...', 600);
   }
 
-  // Drain any buffered stdin (e.g. trailing Enter from VS Code sendText)
-  if (!auto && process.stdin.isTTY) {
-    process.stdin.setRawMode(true);
-    process.stdin.resume();
-    await sleep(150);
-    while (process.stdin.read() !== null) { /* discard */ }
-    process.stdin.pause();
-    process.stdin.setRawMode(false);
-  }
-
-  const defaultServers = { fabricCore: true, powerbiModeling: true, translationAudit: true };
+  // Setup context
   const defaultPaths = resolvePaths(workspace, 'project');
   const ctx: CliContext = {
     workspaceRoot: workspace,

@@ -17,7 +17,7 @@ import {
   projectPaths, globalPaths,
   WORKSPACE_FILES, TRANSLATION_TOOLKIT_FILES,
   SKILL_DIR, SKILL_FILES, DEPLOY_AGENTS_SKILL_DIR, DEPLOY_AGENTS_SKILL_FILES,
-  AGENT_FILES,
+  AGENT_FILES, RAW_API_DIR,
 } from '../constants';
 import type { InstallPaths, ServerSelection } from './types';
 
@@ -166,6 +166,13 @@ export function copyKnowledgeBase(ctx: CliContext): void {
     if (fs.existsSync(src)) {
       copyFileIfNewerCli(src, dest, true);
     }
+  }
+
+  // raw_api_call documentation hierarchy (bundled/raw-api/ → kbDir/raw-api/)
+  const rawApiSrc = path.join(bundledDir, RAW_API_DIR);
+  const rawApiDest = path.join(kbDir, RAW_API_DIR);
+  if (fs.existsSync(rawApiSrc)) {
+    copyDirRecursive(rawApiSrc, rawApiDest);
   }
 }
 

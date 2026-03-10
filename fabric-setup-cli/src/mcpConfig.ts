@@ -21,6 +21,7 @@ export function buildMcpConfig(options: McpConfigOptions): Record<string, any> {
     servers[MCP_SERVER_KEYS.fabricCore] = {
       command: uvPath,
       args: ['--directory', fabricDir, 'run', 'fabric_mcp_stdio.py'],
+      defer_loading: true,
     };
   }
 
@@ -29,6 +30,7 @@ export function buildMcpConfig(options: McpConfigOptions): Record<string, any> {
       type: 'stdio',
       command: options.powerbiExePath.replace(/\//g, '\\'),
       args: ['--start'],
+      defer_loading: true,
     };
   }
 
@@ -37,6 +39,7 @@ export function buildMcpConfig(options: McpConfigOptions): Record<string, any> {
     servers[MCP_SERVER_KEYS.translationAudit] = {
       command: options.auditPythonPath,
       args: [serverPath],
+      defer_loading: true,
     };
   }
 
